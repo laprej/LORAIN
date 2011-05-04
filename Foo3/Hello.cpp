@@ -57,7 +57,7 @@
 
 using namespace llvm;
 
-STATISTIC(HelloCounter, "Counts number of functions greeted");
+
 
 namespace {
     static cl::opt<std::string> OverFunc("rev-func",
@@ -66,14 +66,76 @@ namespace {
 	static cl::opt<std::string> TargetFunc("tgt-func",
 										   cl::desc("<func to output>"));//, llvm::cl::Required);
     
+    class Inverter : public InstVisitor<Inverter>
+    {
+    public:
+        
+        IRBuilder<> *builder;
+        
+        void visitStoreInst(StoreInst &I) {
+            errs() << "STORE INSTRUCTION\n";
+            
+            Value *storeVal = I.getPointerOperand();
+            if (GlobalValue *gv = dyn_cast<GlobalValue>(storeVal)) {
+                errs() << storeVal->getName() << " is a global value\n";
+            }
+            else {
+                errs() << storeVal->getName() << " is not a global value\n";
+                return;
+                // FIX THIS LATER
+            }
+            
+            //builder.Cr
+        }
+    };
+    
     // Hello - The first implementation, without getAnalysisUsage.
     struct Hello : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
         Hello() : ModulePass(ID) {}
         
+        /// Our Inverter class
+        Inverter *inv;
         
         std::map<BasicBlock *, BasicBlock *> newToOld;
         std::map<BasicBlock *, BasicBlock *> oldToNew;
+        
+        IRBuilder<> *builder;
+        
+        BasicBlock *reverseBlock(BasicBlock *B)
+        {
+            BasicBlock::iterator it = B->end();
+            BasicBlock::iterator E = B->begin();
+            
+            /*
+             BasicBlock *block = BasicBlock::Create(getGlobalContext(),
+             "rev_bb", reverse);
+             */
+            
+            errs() << "BARBAR\n";
+            --it;
+            while (it) {
+                static int count = 0;
+                //errs() << count++ << ": " << *it << "\n";
+                //if (StoreInst *i = dyn_cast<StoreInst>(it)) {
+                if (Instruction *i = dyn_cast<Instruction>(it)) {
+                    /* if (isa<UnreachableInst>(i)) {
+                     // Skip the unreachables...
+                     continue;
+                     } */
+                    IRBuilder<> build();
+                    errs() << "reversing " << *i << " instruction\n";
+                    inv->visit(*i);
+                }
+                if (it != E) {
+                    --it;
+                }
+                else {
+                    break;
+                }
+            }
+            errs() << "\\BARBAR\n";
+        }
         
         Function *createReverseFunction(Module &M)
         {
@@ -148,6 +210,11 @@ namespace {
             
             if (count == 0) {
                 // No predecessors means this must be have been the entry.  Now it's the exit
+                
+                //
+                reverseBlock(oldBB);
+                //
+                
                 errs() << "count is zero\n";
                 IRBuilder<> builder(newBB);
                 builder.CreateRetVoid();
@@ -155,6 +222,11 @@ namespace {
             
             if (count == 1) {
                 // Straight-through
+                
+                //
+                reverseBlock(oldBB);
+                //
+                
                 errs() << "count is one\n";
                 IRBuilder<> builder(newBB);
                 BasicBlock *key = pred_list[0];
@@ -187,6 +259,7 @@ namespace {
                 BasicBlock *newEntryBB = BasicBlock::Create(M.getContext(), "r_" + oldBB->getName(), target);
                 newToOld.insert(std::make_pair(newEntryBB, oldBB));
                 
+                // Create all the new (empty) BBs
                 for (Function::iterator i = rev->begin(), e = rev->end(); i != e; ++i) {
                     BasicBlock *bb = i;
                     if (bb == oldBB) {
