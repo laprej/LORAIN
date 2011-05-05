@@ -24,6 +24,8 @@
 
 #include <map>
 
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
 
 // COPIED FROM PREVIOUS ATTEMPT
 #include "llvm/Pass.h"
@@ -89,13 +91,21 @@ namespace {
         }
     };
     
+    class Swapper {
+        
+    };
+    
     // Hello - The first implementation, without getAnalysisUsage.
     struct Hello : public ModulePass {
         static char ID; // Pass identification, replacement for typeid
-        Hello() : ModulePass(ID) {}
+        Hello() : ModulePass(ID) {
+            builder = 0;
+        }
         
         /// Our Inverter class
         Inverter *inv;
+        
+        std::list<Instruction*> instructionStack;
         
         std::map<BasicBlock *, BasicBlock *> newToOld;
         std::map<BasicBlock *, BasicBlock *> oldToNew;
@@ -115,7 +125,6 @@ namespace {
             errs() << "BARBAR\n";
             --it;
             while (it) {
-                static int count = 0;
                 //errs() << count++ << ": " << *it << "\n";
                 //if (StoreInst *i = dyn_cast<StoreInst>(it)) {
                 if (Instruction *i = dyn_cast<Instruction>(it)) {
@@ -125,6 +134,17 @@ namespace {
                      } */
                     IRBuilder<> build();
                     errs() << "reversing " << *i << " instruction\n";
+                    errs() << "It uses: ";
+                    for (User::op_iterator u = i->op_begin(), e = i->op_end(); u != e; ++u) {
+                        if (Instruction *v = dyn_cast<Instruction>(u)) {
+                            errs() << v->getName() << " ";
+                        }
+                        else {
+                            Value *v = dyn_cast<Value>(u);
+                            errs() << "v_" << v->getName() << " ";
+                        }
+                    }
+                    errs() << "\n";
                     inv->visit(*i);
                 }
                 if (it != E) {
@@ -156,6 +176,12 @@ namespace {
 				DEBUG(errs() << "Problem inserting function " << TargetFunc << "\n");
 				exit(-1);
 			}
+            
+            ValueToValueMapTy vmap;
+            SmallVectorImpl<ReturnInst*> Returns(1);
+            CloneFunctionInto(reverse, M.getFunction(OverFunc), vmap, true, Returns, "_reverse");
+            
+            reverse->viewCFG();
             
             return reverse;
         }
@@ -208,6 +234,12 @@ namespace {
                 count++;
             }
             
+            if (builder) {
+                delete builder;
+                builder = 0;
+            }
+            builder = new IRBuilder<>(newBB);
+            
             if (count == 0) {
                 // No predecessors means this must be have been the entry.  Now it's the exit
                 
@@ -216,8 +248,7 @@ namespace {
                 //
                 
                 errs() << "count is zero\n";
-                IRBuilder<> builder(newBB);
-                builder.CreateRetVoid();
+                builder->CreateRetVoid();
             }
             
             if (count == 1) {
@@ -228,12 +259,11 @@ namespace {
                 //
                 
                 errs() << "count is one\n";
-                IRBuilder<> builder(newBB);
                 BasicBlock *key = pred_list[0];
                 errs() << "Our key is " << *key << "\n";
                 BasicBlock *data = oldToNew[key];
                 errs() << "Our data is " << *data << "\n";
-                builder.CreateBr(data);
+                builder->CreateBr(data);
             }
             
             if (count == 2) {
@@ -247,6 +277,19 @@ namespace {
             }
         }
         
+        Instruction * transmute(Instruction *I) {
+            Value *v1 = I->getOperand(0);
+            errs() << "operand(0) is " << *v1 << "\n";
+            Value *v2 = I->getOperand(1);
+            errs() << "operand(1) is " << *v2 << "\n";
+            
+            Instruction * ret = BinaryOperator::Create(Instruction::Mul, v1, v2);
+            
+            errs() << "ret is " << *ret << "\n";
+            
+            return ret;
+        }
+        
         
         virtual bool runOnModule(Module &M) {
             if (Function *rev = M.getFunction(OverFunc)) {
@@ -254,9 +297,81 @@ namespace {
                 
                 Function *target = createReverseFunction(M);
                 
+                // NEW STUFF HERE
+                for (Function::iterator i = target->begin(), e = target->end(); i != e; ++i) {
+                    // Print out the name of the basic block if it has one, and then the
+                    // number of instructions that it contains
+                    errs() << "Basic block (name=" << i->getName() << ") has "
+                    << i->size() << " instructions.\n";
+                    
+                    instructionStack.clear();
+                    
+                    for (BasicBlock::iterator j = i->begin(), e = i->end(); j != e; ++j) {
+                        // The next statement works since operator<<(ostream&,...)
+                        // is overloaded for Instruction&
+                        errs() << *j << "\n";
+                        
+                        if (isa<LoadInst>(j) || isa<StoreInst>(j)) {
+                            errs() << "bypassing load / store\n";
+                            errs() << *j << "\n\n";
+                        }
+                        else if (isa<TerminatorInst>(j)) {
+                            errs() << "bypassing terminator\n";
+                        }
+                        else {
+                            errs() << "We need to reverse " << *j << "\n\n";
+                            instructionStack.push_back(j);
+                        }
+                    }
+                    
+                    for (BasicBlock::iterator j = i->begin(), e = i->end(); j != e; ++j) {
+                        if (isa<LoadInst>(j) || isa<StoreInst>(j)) {
+                            //errs() << "bypassing load / store\n";
+                            //errs() << *j << "\n\n";
+                        }
+                        else if (isa<TerminatorInst>(j)) {
+                            // Nothing!
+                        }
+                        else {
+                            errs() << "instructionStack.size() is " << instructionStack.size() << "\n";
+                            Instruction *r = instructionStack.back();
+                            instructionStack.pop_back();
+                            errs() << "swapping " << *j << "with " << *r << "\n\n";
+                            
+                            Instruction *t = transmute(j);
+                            
+                            errs() << "transmute returned " << *t << "\n";
+                            
+                            //ReplaceInstWithInst(j, t);
+                            BasicBlock::iterator ii(j);
+                            
+                            //ReplaceInstWithInst(j->getParent()->getInstList(), ii, t);
+
+                            builder = new IRBuilder<>(j);
+                            
+                            Value *v = builder->CreateMul(j->getOperand(0), j->getOperand(1));
+                            
+                            Instruction *foo = dyn_cast<Instruction>(v);
+                            
+                            errs() << "foo is " << *foo << "\n";
+                            
+                            ReplaceInstWithInst(j->getParent()->getInstList(), ii, foo);
+                        }
+                    }
+                }
+                
+                target->viewCFG();
+                
+                return true;
+                
+                // NEW STUFF HERE
+                
+                
                 // Find the exit block from OverFunc
                 BasicBlock *oldBB = findExitBlock(*rev);
-                BasicBlock *newEntryBB = BasicBlock::Create(M.getContext(), "r_" + oldBB->getName(), target);
+                //BasicBlock *newEntryBB = BasicBlock::Create(M.getContext(), "r_" + oldBB->getName(), target);
+                ValueToValueMapTy VMap;
+                BasicBlock *newEntryBB = CloneBasicBlock(oldBB, VMap, "", target);
                 newToOld.insert(std::make_pair(newEntryBB, oldBB));
                 
                 // Create all the new (empty) BBs
@@ -266,11 +381,15 @@ namespace {
                         continue;
                     }
                     errs() << "BB info: " << i->getName() << "\n";
-                    BasicBlock *newBB = BasicBlock::Create(M.getContext(), "r_" + i->getName(), target);
+                    //BasicBlock *newBB = BasicBlock::Create(M.getContext(), "r_" + i->getName(), target);
+                    ValueToValueMapTy VMap;
+                    BasicBlock *newBB = CloneBasicBlock(bb, VMap, "", target);
                     errs() << "Reverse BB info: " << newBB->getName() << "\n";
                     newToOld.insert(std::make_pair(newBB, bb));
                     oldToNew.insert(std::make_pair(bb, newBB));
                 }
+                
+                //target->viewCFG();
                 
                 for (std::map<BasicBlock *, BasicBlock *>::iterator it = newToOld.begin(), e = newToOld.end();
                      it != e; ++it) {
