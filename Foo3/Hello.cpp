@@ -290,13 +290,8 @@ namespace {
             
             ReplaceInstWithInst(I, ret);
             
-            //BasicBlock::iterator ii(I);
-            //ReplaceInstWithInst(I->getParent()->getInstList(), ii, ret);
-            
             errs() << "ret 2 is " << *ret << "\n";
-            
-            //I->eraseFromParent();
-            
+                        
             return;
         }
         
@@ -338,22 +333,11 @@ namespace {
                         bbInstructions.push_back(j);
                     }
                     
-                    
-                    // SNEAKY BUG BELOW - WHEN WE CHANGE THE INSTRUCTIONS, OUR end()
-                    // CHANGES SO WE CAN'T STORE OUR END FROM THE BEGINNING!!!
-                    
-                    BasicBlock::InstListType &insts = i->getInstList();
-                    
                     BasicBlock::iterator j = i->begin();
                     
                     while (j != i->end()) {
-                    //for (BasicBlock::iterator j = i->begin(); j != i->end();) {
-                    //BasicBlock::InstListType::iterator j;
                         Instruction *J = dyn_cast<Instruction>(j);
                     
-                    
-                    //for (j = insts.begin(); j != insts.end(); ++j) {
-                        
                         errs() << "BasicBlock::iterator: " << *j << "\n";
                         
                         if (isa<LoadInst>(J) || isa<StoreInst>(J)) {
@@ -369,7 +353,6 @@ namespace {
                             instructionStack.pop_back();
                             errs() << "swapping " << *J << "with " << *r << "\n\n";
                             
-                            //Instruction *J = &*j;
                             // We have to do this here so we don't lose a valid iterator
                             ++j;
                             
@@ -378,25 +361,8 @@ namespace {
                             //errs() << "transmute returned " << *t << "\n";
                             
                             target->viewCFG();
-                            
-                            //return true;
-                            
+                                                        
                             continue;
-//                            
-//                            //ReplaceInstWithInst(j, t);
-//                            BasicBlock::iterator ii(j);
-//                            
-//                            //ReplaceInstWithInst(j->getParent()->getInstList(), ii, t);
-//
-//                            builder = new IRBuilder<>(j);
-//                            
-//                            Value *v = builder->CreateMul(j->getOperand(0), j->getOperand(1));
-//                            
-//                            Instruction *foo = dyn_cast<Instruction>(v);
-//                            
-//                            errs() << "foo is " << *foo << "\n";
-//                            
-//                            ReplaceInstWithInst(j->getParent()->getInstList(), ii, foo);
                         }
                         ++j;
                     }
@@ -455,27 +421,3 @@ namespace {
 
 char Hello::ID = 0;
 static RegisterPass<Hello> X("hello", "Hello World Pass");
-
-//namespace {
-//  // Hello2 - The second implementation with getAnalysisUsage implemented.
-//  struct Hello2 : public FunctionPass {
-//    static char ID; // Pass identification, replacement for typeid
-//    Hello2() : FunctionPass(ID) {}
-//
-//    virtual bool runOnFunction(Function &F) {
-//      ++HelloCounter;
-//      errs() << "Hello: ";
-//      errs().write_escaped(F.getName()) << '\n';
-//      return false;
-//    }
-//
-//    // We don't modify the program, so we preserve all analyses
-//    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-//      AU.setPreservesAll();
-//    }
-//  };
-//}
-//
-//char Hello2::ID = 0;
-//static RegisterPass<Hello2>
-//Y("hello2", "Hello World Pass (with getAnalysisUsage implemented)");
