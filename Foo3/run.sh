@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export PATH=/Users/laprej/temp/llvm-install/bin:/Users/laprej/temp/llvm-gcc/bin:$PATH
+export PATH=/Users/laprej/temp/llvm-mac-install/bin:/Users/laprej/temp/llvm-gcc/bin:$PATH
 
 llvm-gcc -emit-llvm hello.c -c -o hello.bc
 

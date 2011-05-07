@@ -25,6 +25,7 @@
 #include <map>
 
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/ADT/ilist.h"
 
 
 // COPIED FROM PREVIOUS ATTEMPT
@@ -277,17 +278,26 @@ namespace {
             }
         }
         
-        Instruction * transmute(Instruction *I) {
+        inline void transmute(Instruction *I) {
             Value *v1 = I->getOperand(0);
             errs() << "operand(0) is " << *v1 << "\n";
             Value *v2 = I->getOperand(1);
             errs() << "operand(1) is " << *v2 << "\n";
             
-            Instruction * ret = BinaryOperator::Create(Instruction::Mul, v1, v2);
+            Instruction * ret = BinaryOperator::Create(Instruction::Mul, v1, v2, "newInst");
             
-            errs() << "ret is " << *ret << "\n";
+            errs() << "ret 1 is " << *ret << "\n";
             
-            return ret;
+            ReplaceInstWithInst(I, ret);
+            
+            //BasicBlock::iterator ii(I);
+            //ReplaceInstWithInst(I->getParent()->getInstList(), ii, ret);
+            
+            errs() << "ret 2 is " << *ret << "\n";
+            
+            //I->eraseFromParent();
+            
+            return;
         }
         
         
@@ -304,9 +314,11 @@ namespace {
                     errs() << "Basic block (name=" << i->getName() << ") has "
                     << i->size() << " instructions.\n";
                     
+                    std::list<Instruction *> bbInstructions;
+                    
                     instructionStack.clear();
                     
-                    for (BasicBlock::iterator j = i->begin(), e = i->end(); j != e; ++j) {
+                    for (BasicBlock::iterator j = i->begin(), f = i->end(); j != f; ++j) {
                         // The next statement works since operator<<(ostream&,...)
                         // is overloaded for Instruction&
                         errs() << *j << "\n";
@@ -322,41 +334,71 @@ namespace {
                             errs() << "We need to reverse " << *j << "\n\n";
                             instructionStack.push_back(j);
                         }
+                        
+                        bbInstructions.push_back(j);
                     }
                     
-                    for (BasicBlock::iterator j = i->begin(), e = i->end(); j != e; ++j) {
-                        if (isa<LoadInst>(j) || isa<StoreInst>(j)) {
+                    
+                    // SNEAKY BUG BELOW - WHEN WE CHANGE THE INSTRUCTIONS, OUR end()
+                    // CHANGES SO WE CAN'T STORE OUR END FROM THE BEGINNING!!!
+                    
+                    BasicBlock::InstListType &insts = i->getInstList();
+                    
+                    BasicBlock::iterator j = i->begin();
+                    
+                    while (j != i->end()) {
+                    //for (BasicBlock::iterator j = i->begin(); j != i->end();) {
+                    //BasicBlock::InstListType::iterator j;
+                        Instruction *J = dyn_cast<Instruction>(j);
+                    
+                    
+                    //for (j = insts.begin(); j != insts.end(); ++j) {
+                        
+                        errs() << "BasicBlock::iterator: " << *j << "\n";
+                        
+                        if (isa<LoadInst>(J) || isa<StoreInst>(J)) {
                             //errs() << "bypassing load / store\n";
                             //errs() << *j << "\n\n";
                         }
-                        else if (isa<TerminatorInst>(j)) {
+                        else if (isa<TerminatorInst>(J)) {
                             // Nothing!
                         }
                         else {
                             errs() << "instructionStack.size() is " << instructionStack.size() << "\n";
                             Instruction *r = instructionStack.back();
                             instructionStack.pop_back();
-                            errs() << "swapping " << *j << "with " << *r << "\n\n";
+                            errs() << "swapping " << *J << "with " << *r << "\n\n";
                             
-                            Instruction *t = transmute(j);
+                            //Instruction *J = &*j;
+                            // We have to do this here so we don't lose a valid iterator
+                            ++j;
                             
-                            errs() << "transmute returned " << *t << "\n";
+                            transmute(J);
                             
-                            //ReplaceInstWithInst(j, t);
-                            BasicBlock::iterator ii(j);
+                            //errs() << "transmute returned " << *t << "\n";
                             
-                            //ReplaceInstWithInst(j->getParent()->getInstList(), ii, t);
-
-                            builder = new IRBuilder<>(j);
+                            target->viewCFG();
                             
-                            Value *v = builder->CreateMul(j->getOperand(0), j->getOperand(1));
+                            //return true;
                             
-                            Instruction *foo = dyn_cast<Instruction>(v);
-                            
-                            errs() << "foo is " << *foo << "\n";
-                            
-                            ReplaceInstWithInst(j->getParent()->getInstList(), ii, foo);
+                            continue;
+//                            
+//                            //ReplaceInstWithInst(j, t);
+//                            BasicBlock::iterator ii(j);
+//                            
+//                            //ReplaceInstWithInst(j->getParent()->getInstList(), ii, t);
+//
+//                            builder = new IRBuilder<>(j);
+//                            
+//                            Value *v = builder->CreateMul(j->getOperand(0), j->getOperand(1));
+//                            
+//                            Instruction *foo = dyn_cast<Instruction>(v);
+//                            
+//                            errs() << "foo is " << *foo << "\n";
+//                            
+//                            ReplaceInstWithInst(j->getParent()->getInstList(), ii, foo);
                         }
+                        ++j;
                     }
                 }
                 
