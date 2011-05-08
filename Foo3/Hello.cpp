@@ -279,18 +279,72 @@ namespace {
         }
         
         inline void transmute(Instruction *I) {
+            errs() << "transmute: I'll try and figure out how to reverse " << *I << "\n";
             Value *v1 = I->getOperand(0);
             errs() << "operand(0) is " << *v1 << "\n";
             Value *v2 = I->getOperand(1);
             errs() << "operand(1) is " << *v2 << "\n";
             
-            Instruction * ret = BinaryOperator::Create(Instruction::Mul, v1, v2, "newInst");
+            Instruction *r = instructionStack.back();
+            //instructionStack.pop_back();
+            errs() << "transmute: The top of the stack holds " << *r << "\n";
             
-            errs() << "ret 1 is " << *ret << "\n";
+            Instruction *ret = 0;
             
-            ReplaceInstWithInst(I, ret);
+            if (BinaryOperator *b = dyn_cast<BinaryOperator>(r)) {
+                errs() << "OK we have a binary operator\n";
+                
+                llvm::Instruction::BinaryOps op = b->getOpcode();
+                
+                
+                // See llvm/include/Instruction.def for a list of these constants
+                switch (op) {
+                    case Instruction::Add:
+                        errs() << "Inserting sub in place of add\n";
+                        v1 = b->getOperand(0);
+                        errs() << "operand(0) is " << *v1 << "\n";
+                        v2 = b->getOperand(1);
+                        errs() << "operand(1) is " << *v2 << "\n";
+                        ret = BinaryOperator::Create(Instruction::Sub, v1, v2, "r_add");
+                        break;
+                        
+                    case Instruction::Sub:
+                        errs() << "Inseting add in place of sub\n";
+                        v1 = b->getOperand(0);
+                        errs() << "operand(0) is " << *v1 << "\n";
+                        v2 = b->getOperand(1);
+                        errs() << "operand(1) is " << *v2 << "\n";
+                        ret = BinaryOperator::Create(Instruction::Add, v1, v2, "r_sub");
+                        break;
+                        
+                    case Instruction::Mul:
+                        errs() << "Inserting udiv in place of mul\n";
+                        v1 = b->getOperand(0);
+                        errs() << "operand(0) is " << *v1 << "\n";
+                        v2 = b->getOperand(1);
+                        errs() << "operand(1) is " << *v2 << "\n";
+                        ret = BinaryOperator::Create(Instruction::UDiv, v1, v2, "r_mul");
+                        break;
+                        
+                        
+                    default:
+                        break;
+                }
+            }
             
-            errs() << "ret 2 is " << *ret << "\n";
+            if (ret) {
+                //Instruction * ret = BinaryOperator::Create(Instruction::Mul, v1, v2, "newInst");
+                instructionStack.pop_back();
+                
+                errs() << "ret 1 is " << *ret << "\n";
+                
+                ReplaceInstWithInst(I, ret);
+                
+                errs() << "ret 2 is " << *ret << "\n";
+            }
+            else {
+                errs() << "No appropriate operands to ReplaceInstWithInst\n";
+            }
                         
             return;
         }
@@ -308,8 +362,6 @@ namespace {
                     // number of instructions that it contains
                     errs() << "Basic block (name=" << i->getName() << ") has "
                     << i->size() << " instructions.\n";
-                    
-                    std::list<Instruction *> bbInstructions;
                     
                     instructionStack.clear();
                     
@@ -329,9 +381,18 @@ namespace {
                             errs() << "We need to reverse " << *j << "\n\n";
                             instructionStack.push_back(j);
                         }
-                        
-                        bbInstructions.push_back(j);
                     }
+                    
+                    
+                    /*
+                     Just brain storming here in comments...  So I think what's happening is that
+                     we are swapping instructions, and some of those instructions were in the stack
+                     and so now are deleted, which is a problem...  We may need to go from the front()
+                     of the stack and the end() iterator to replace them...
+                     OK so things are still getting squashed...  Create a map between every (read-only)
+                     value from the original code and its (volatile) equivalent and look them up
+                     */
+                    
                     
                     BasicBlock::iterator j = i->begin();
                     
@@ -349,9 +410,9 @@ namespace {
                         }
                         else {
                             errs() << "instructionStack.size() is " << instructionStack.size() << "\n";
-                            Instruction *r = instructionStack.back();
-                            instructionStack.pop_back();
-                            errs() << "swapping " << *J << "with " << *r << "\n\n";
+                            //Instruction *r = instructionStack.back();
+                            //instructionStack.pop_back();
+                            //errs() << "swapping " << *J << "with " << *r << "\n\n";
                             
                             // We have to do this here so we don't lose a valid iterator
                             ++j;
