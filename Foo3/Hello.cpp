@@ -111,6 +111,8 @@ namespace {
         std::map<BasicBlock *, BasicBlock *> newToOld;
         std::map<BasicBlock *, BasicBlock *> oldToNew;
         
+        std::map<Value *, Value *> duals;
+        
         IRBuilder<> *builder;
         
         BasicBlock *reverseBlock(BasicBlock *B)
@@ -278,6 +280,21 @@ namespace {
             }
         }
         
+        /// Change all Values from ``from'' to ``to''
+        void updateMap(Value *from, Value *to) {
+            std::map<Value *, Value *>::iterator it, e;
+            
+            for (it = duals.begin(), e = duals.end(); it != e; ++it) {
+                Value *key = it->first;
+                Value *data = it->second;
+                
+                if (data == from) {
+                    duals.erase(it);
+                    duals.insert(std::make_pair(key, to));
+                }
+            }
+        }
+        
         inline void transmute(Instruction *I) {
             errs() << "transmute: I'll try and figure out how to reverse " << *I << "\n";
             Value *v1 = I->getOperand(0);
@@ -339,6 +356,7 @@ namespace {
                 errs() << "ret 1 is " << *ret << "\n";
                 
                 ReplaceInstWithInst(I, ret);
+                updateMap(I, ret);
                 
                 errs() << "ret 2 is " << *ret << "\n";
             }
@@ -357,7 +375,8 @@ namespace {
                 Function *target = createReverseFunction(M);
                 
                 // NEW STUFF HERE
-                for (Function::iterator i = target->begin(), e = target->end(); i != e; ++i) {
+                for (Function::iterator i = target->begin(), e = target->end(),
+                     I = rev->begin(), E = rev->end(); i != e; ++i) {
                     // Print out the name of the basic block if it has one, and then the
                     // number of instructions that it contains
                     errs() << "Basic block (name=" << i->getName() << ") has "
@@ -365,7 +384,8 @@ namespace {
                     
                     instructionStack.clear();
                     
-                    for (BasicBlock::iterator j = i->begin(), f = i->end(); j != f; ++j) {
+                    for (BasicBlock::iterator j = i->begin(), f = i->end(),
+                         J = I->begin(), F = I->end(); j != f; ++j) {
                         // The next statement works since operator<<(ostream&,...)
                         // is overloaded for Instruction&
                         errs() << *j << "\n";
@@ -380,6 +400,10 @@ namespace {
                         else {
                             errs() << "We need to reverse " << *j << "\n\n";
                             instructionStack.push_back(j);
+                            
+                            // We also need to map these two together - at this point
+                            // they should have identical contents
+                            duals.insert(std::make_pair(J, j));
                         }
                     }
                     
