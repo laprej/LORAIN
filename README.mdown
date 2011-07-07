@@ -5,17 +5,17 @@ Attempt 1 (Foo2)
 ----------------
 This (poorly named) first attempt was basically my first thoughts
 on the matter of inverting an event handler.  My thoughts were that
-if we could just undo all of the *store* instructions then we could
+if we could just undo all of the **store** instructions then we could
 easily get back to our original data.  Unfortunately, things were not
-so easy (imagine branching with different *store*s to the same variable
-in both branches).
+so easy (imagine branching with different **store** instructions writing
+to the same variable in both branches).
 
 Attempt 2 (Foo3)
 ----------------
 This attempt was *Basic Block* based.  My entire event handler function
 was copied to a new reverse event handler.  Then we walk the new event
 handler, BB by BB, and attempted to invert the instructions (minus
-*load*/*store*/*terminator* instructions.  This quickly became confusing
+**load**/**store**/**terminator** instructions.  This quickly became confusing
 due to the multiple STL containers I had (stacks, lists, vectors, etc.)
 all containing essentially the same instructions.
 
