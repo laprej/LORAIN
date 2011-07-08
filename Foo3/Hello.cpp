@@ -107,11 +107,12 @@ namespace {
         Inverter *inv;
         
         std::list<Instruction*> instructionStack;
-        
+        std::list<Instruction*> reverseInstructionStack;
+		
         std::map<BasicBlock *, BasicBlock *> newToOld;
         std::map<BasicBlock *, BasicBlock *> oldToNew;
         
-        std::map<Value *, Value *> duals;
+        std::map<const Value *, Value *> duals;
         
         IRBuilder<> *builder;
         
@@ -282,27 +283,121 @@ namespace {
         
         /// Change all Values from ``from'' to ``to''
         void updateMap(Value *from, Value *to) {
-            std::map<Value *, Value *>::iterator it, e;
+			
+			errs() << "We are swapping\n\t";
+			errs() << *from << " out for\n\t";
+			errs() << *to << "\n";
+			
+            std::map<const Value *, Value *>::iterator it, e;
             
             for (it = duals.begin(), e = duals.end(); it != e; ++it) {
-                Value *key = it->first;
+                const Value *key = it->first;
                 Value *data = it->second;
                 
                 if (data == from) {
                     duals.erase(it);
                     duals.insert(std::make_pair(key, to));
                 }
+				
+				if (key == from) {
+					duals.erase(it);
+					duals.insert(std::make_pair(to, data));
+				}
             }
         }
+		
+		void outputMap() {
+			std::map<const Value *, Value *>::iterator it, e;
+			
+			errs() << "MAP BEGIN\n";
+			for (it = duals.begin(), e = duals.end(); it != e; ++it) {
+				errs() << "key: " << *it->first << "\n\tdata: " << *it->second << "\n";
+			}
+			errs() << "MAP END\n";
+		}
+		
+		Value * lookup(Value *k) {
+			errs() << "LOOKUP\n";
+			std::map<const Value *, Value *>::iterator it;
+			
+			it = duals.find(k);
+			if (it == duals.end()) {
+				errs() << *k << " not found, outputting map\n";
+				outputMap();
+				return k;
+			}
+			
+			return it->second;
+		}
+		
+		/// Change all Values from ``from'' to ``to''
+        void updateList(Instruction *from, Instruction *to) {
+			//std::list<Instruction*> instructionStack;
+            std::list<Instruction *>::iterator it, e;
+			
+			errs() << "swapping " << *from << " to " << *to << "\n";
+            
+            for (it = instructionStack.begin(), e = instructionStack.end(); it != e; ++it) {
+				Instruction *data = *it;
+                
+                if (data == from) {
+					instructionStack.insert(it, to);
+					instructionStack.erase(it);
+                    //duals.erase(it);
+                    //duals.insert(std::make_pair(key, to));
+                }
+            }
+        }
+		
+		/// Stack dumper
+		void outputList(std::list<Instruction*> l, std::string s) {
+			errs() << s + "\n";
+			std::list<Instruction *>::iterator it, e;
+			for (it = l.begin(), e = l.end(); it != e; ++it) {
+				Instruction *inst = *it;
+				errs() << *inst << "\n";
+			}
+			errs() << s + " END\n";
+		}
         
-        inline void transmute(Instruction *I) {
+		
+		/**
+		 OK, this function does not currently do this, but it should in the future
+		 do the following:
+		 
+		 Two Code Paths:
+		    A, the original block we intend to reverse, and
+		    B, the reversed counterpart of A
+		 
+		 The instructionStack contains instructions from A pushed onto the stack
+		 in the order in which they are seen, e.g. they top of the stack has the
+		 last instruction.  What we need to do is:
+		 
+			1. Pop the instruction off the stack
+			2. Figure out its inverse
+			3. Look up the corresponding instruction in B
+			4. Replace 3 with 2
+		 */
+        inline void transmute(/*Instruction *I*/) {
+			outputList(instructionStack, "INSTRUCTION STACK");
+			outputList(reverseInstructionStack, "REVERSE INSTRUCTION STACK");
+			
+			Instruction *I = instructionStack.back();
+			instructionStack.pop_back();
+			
+			Instruction *RI = reverseInstructionStack.front();
+			reverseInstructionStack.pop_front();
+			
             errs() << "transmute: I'll try and figure out how to reverse " << *I << "\n";
             Value *v1 = I->getOperand(0);
             errs() << "operand(0) is " << *v1 << "\n";
             Value *v2 = I->getOperand(1);
             errs() << "operand(1) is " << *v2 << "\n";
             
-            Instruction *r = instructionStack.back();
+			errs() << "transmute: The stack size is " << instructionStack.size() << "\n";
+            //Instruction *r = instructionStack.back();
+			Instruction *r = I;
+			outputList(instructionStack, "INSTRUCTION STACK");
             //instructionStack.pop_back();
             errs() << "transmute: The top of the stack holds " << *r << "\n";
             
@@ -313,6 +408,8 @@ namespace {
                 
                 llvm::Instruction::BinaryOps op = b->getOpcode();
                 
+				// Fix the operands, they're still in original stack!
+				
                 
                 // See llvm/include/Instruction.def for a list of these constants
                 switch (op) {
@@ -322,7 +419,7 @@ namespace {
                         errs() << "operand(0) is " << *v1 << "\n";
                         v2 = b->getOperand(1);
                         errs() << "operand(1) is " << *v2 << "\n";
-                        ret = BinaryOperator::Create(Instruction::Sub, v1, v2, "r_add");
+                        ret = BinaryOperator::Create(Instruction::Sub, lookup(v1), lookup(v2), "r_add");
                         break;
                         
                     case Instruction::Sub:
@@ -331,7 +428,7 @@ namespace {
                         errs() << "operand(0) is " << *v1 << "\n";
                         v2 = b->getOperand(1);
                         errs() << "operand(1) is " << *v2 << "\n";
-                        ret = BinaryOperator::Create(Instruction::Add, v1, v2, "r_sub");
+                        ret = BinaryOperator::Create(Instruction::Add, lookup(v1), lookup(v2), "r_sub");
                         break;
                         
                     case Instruction::Mul:
@@ -340,7 +437,7 @@ namespace {
                         errs() << "operand(0) is " << *v1 << "\n";
                         v2 = b->getOperand(1);
                         errs() << "operand(1) is " << *v2 << "\n";
-                        ret = BinaryOperator::Create(Instruction::UDiv, v1, v2, "r_mul");
+                        ret = BinaryOperator::Create(Instruction::UDiv, lookup(v1), lookup(v2), "r_mul");
                         break;
                         
                         
@@ -350,18 +447,55 @@ namespace {
             }
             
             if (ret) {
+				outputMap();
+				std::map<const Value *, Value *>::iterator mapit;
+				mapit = duals.find(RI);
+				if (mapit == duals.end()) {
+					errs() << *RI << " could not be found in duals!\n";
+					exit(-1);
+				}
+				errs() << "Here1\n";
+				Value * val = (*mapit).second;
+				errs() << "Here2\n";
+				errs() << "val is " << *val << "\n";
+				
+				Instruction *newInst = dyn_cast<Instruction>(val);
+				errs() << "Here3\n";
+				
                 //Instruction * ret = BinaryOperator::Create(Instruction::Mul, v1, v2, "newInst");
-                instructionStack.pop_back();
+				errs() << "transmute2: The stack size is " << instructionStack.size() << "\n";
+                //instructionStack.pop_back();
+				errs() << "transmute2: The stack size is " << instructionStack.size() << "\n";
                 
                 errs() << "ret 1 is " << *ret << "\n";
                 
-                ReplaceInstWithInst(I, ret);
-                updateMap(I, ret);
+				outputList(instructionStack, "INSTRUCTION STACK");
+				
+				
+				// Insertion into an explicit instruction list
+				// http://llvm.org/docs/ProgrammersManual.html#schanges_creating
+				//BasicBlock *pb = newInst->getParent();
+				//pb->getInstList().insert(newInst, ret); // Inserts ret before newInst in pb
+				
+                ReplaceInstWithInst(newInst, ret);
+				//ReplaceInstWithInst(I, ret);
+				
+				//BasicBlock::iterator ii(newInst);
+				//ReplaceInstWithValue(newInst->getParent()->getInstList(), ii, val);
+				
+				//updateMap(I, ret);
+                updateMap(newInst, ret);
+				//updateList(newInst, ret);
+				outputList(instructionStack, "INSTRUCTION STACK");
                 
                 errs() << "ret 2 is " << *ret << "\n";
+				
+				//instructionStack.pop_back();
+				outputList(instructionStack, "INSTRUCTION STACK");
             }
             else {
                 errs() << "No appropriate operands to ReplaceInstWithInst\n";
+				exit(-1);
             }
                         
             return;
@@ -385,27 +519,39 @@ namespace {
                     instructionStack.clear();
                     
                     for (BasicBlock::iterator j = i->begin(), f = i->end(),
-                         J = I->begin(), F = I->end(); j != f; ++j) {
+                         J = I->begin(), F = I->end(); j != f; ++j, ++J) {
                         // The next statement works since operator<<(ostream&,...)
                         // is overloaded for Instruction&
-                        errs() << *j << "\n";
+                        errs() << *J << "\n";
                         
-                        if (isa<LoadInst>(j) || isa<StoreInst>(j)) {
+                        if (isa<LoadInst>(J) || isa<StoreInst>(J)) {
                             errs() << "bypassing load / store\n";
                             errs() << *j << "\n\n";
+							// We need the mapping in place for proper lookups!
+							duals.insert(std::make_pair(J, j));
                         }
-                        else if (isa<TerminatorInst>(j)) {
+                        else if (isa<TerminatorInst>(J)) {
                             errs() << "bypassing terminator\n";
                         }
                         else {
-                            errs() << "We need to reverse " << *j << "\n\n";
-                            instructionStack.push_back(j);
+                            errs() << "We need to reverse " << *J << "\n\n";
+                            instructionStack.push_back(J);
+							outputList(instructionStack, "INSTRUCTION STACK");
                             
                             // We also need to map these two together - at this point
                             // they should have identical contents
                             duals.insert(std::make_pair(J, j));
                         }
                     }
+					
+					reverseInstructionStack.clear();
+					for (std::list<Instruction*>::iterator it = instructionStack.begin();
+						 it != instructionStack.end(); ++it) {
+						reverseInstructionStack.push_back(*it);
+					}
+					
+					// At this point, all of the Instructions we intend to reverse are
+					// stored in instructionStack.  We do NOT store Loads/Stores/Terminators
                     
                     
                     /*
@@ -417,6 +563,11 @@ namespace {
                      value from the original code and its (volatile) equivalent and look them up
                      */
                     
+					while (instructionStack.size()) {
+						transmute();
+					}
+					
+					return true;
                     
                     BasicBlock::iterator j = i->begin();
                     
@@ -428,9 +579,11 @@ namespace {
                         if (isa<LoadInst>(J) || isa<StoreInst>(J)) {
                             //errs() << "bypassing load / store\n";
                             //errs() << *j << "\n\n";
+							continue;
                         }
                         else if (isa<TerminatorInst>(J)) {
                             // Nothing!
+							continue;
                         }
                         else {
                             errs() << "instructionStack.size() is " << instructionStack.size() << "\n";
@@ -441,7 +594,8 @@ namespace {
                             // We have to do this here so we don't lose a valid iterator
                             ++j;
                             
-                            transmute(J);
+                            transmute();//J);
+							outputList(instructionStack, "INSTRUCTION STACK");
                             
                             //errs() << "transmute returned " << *t << "\n";
                             
