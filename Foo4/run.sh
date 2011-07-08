@@ -6,7 +6,7 @@ DIRECTORY="/Users/jlapre/temp/llvm-mac-install/bin"
 if [ -d "$DIRECTORY" ]; then
 #    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
-    LIB="/Users/jlapre/temp/llvm-mac-install/lib/LLVMFoo3.dylib"
+    LIB="/Users/jlapre/temp/llvm-mac-install/lib/LLVMFoo4.dylib"
 #    echo $PATH
 fi
 
@@ -24,7 +24,7 @@ DIRECTORY="/Users/laprej/temp/llvm-mac-install/bin"
 if [ -d "$DIRECTORY" ]; then
 #    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
-    LIB="/Users/laprej/temp/llvm-mac-install/lib/LLVMFoo3.dylib"
+    LIB="/Users/laprej/temp/llvm-mac-install/lib/LLVMFoo4.dylib"
 #    echo $PATH
 fi
 
