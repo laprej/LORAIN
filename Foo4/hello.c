@@ -23,6 +23,11 @@ void foobar(void)
     x = x - 1;
   }
   */
+  int y = 2;
+  y = y * 3;
+  y = y / 2;
+  y = y * x;
+  x = x * y;
   x = x * 3;
   x = x * 4;
 }

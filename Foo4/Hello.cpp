@@ -56,7 +56,7 @@
 #include <set>
 #include <list>
 
-
+#include "llvm/Analysis/MemoryDependenceAnalysis.h"
 
 using namespace llvm;
 
@@ -71,25 +71,203 @@ namespace {
     
     class Inverter : public InstVisitor<Inverter>
     {
+		bool currently_reversing;
+		std::map<Value *, Value *> oldToNew;
+		IRBuilder<> &builder;
+		
     public:
         
-        IRBuilder<> *builder;
+		Inverter(IRBuilder<> &b): builder(b) { currently_reversing = true; }
+		
+		Value * lookup(Value *k) {
+			errs() << "\n\n\nLOOKUP\n";
+			std::map<Value *, Value *>::iterator it;
+			
+			it = oldToNew.find(k);
+			if (it == oldToNew.end()) {
+				errs() << *k << " not found, outputting map\n";
+				outputMap();
+				return k;
+			}
+			
+			return it->second;
+		}
+		
+		void outputMap() {
+			std::map<Value *, Value *>::iterator it, e;
+			
+			errs() << "MAP BEGIN\n";
+			for (it = oldToNew.begin(), e = oldToNew.end(); it != e; ++it) {
+				errs() << "key: " << *it->first << "\n\tdata: " << *it->second << "\n";
+			}
+			errs() << "MAP END\n";
+		}
+		
+		void visitTerminatorInst(TerminatorInst &I) {
+			errs() << "\n\n\nTERMINATOR INSTRUCTION\n";
+			
+			if (isa<ReturnInst>(I)) {
+				builder.CreateRetVoid();
+			}
+			if (isa<BranchInst>(I)) {
+				//builder.CreateBr();
+				// OK so here we're using a hack that will not work when there are more than
+				// two basic blocks.  Find the function the builder is a part of.  Get the
+				// list of BBs.  Whichever one is not the current block must be the target
+				BasicBlock *bb = builder.GetInsertBlock();
+				Function *f = bb->getParent();
+				for (Function::iterator it = f->begin(), e = f->end(); it != e; ++it) {
+					if (&*it != bb) {
+						builder.CreateBr(it);
+					}
+				}
+			}
+		}
+		
+		void visitAllocaInst(AllocaInst &I) {
+			errs() << "\n\n\nALLOCA INSTRUCTION\n";
+			
+			Value *alloc = builder.CreateAlloca(I.getType(), 0, I.getName());
+			errs() << "Allocating a " << *I.getType() << "\n";
+			
+			oldToNew[&I] = alloc;
+		}
         
         void visitStoreInst(StoreInst &I) {
-            errs() << "STORE INSTRUCTION\n";
+            errs() << "\n\n\nSTORE INSTRUCTION\n";
+			
+			std::vector<Value *> bucket;
+			oldToNew.clear();
             
             Value *storeVal = I.getPointerOperand();
-            if (GlobalValue *gv = dyn_cast<GlobalValue>(storeVal)) {
+			if (isa<GlobalValue>(storeVal)) {
                 errs() << storeVal->getName() << " is a global value\n";
+				currently_reversing = true;
             }
             else {
                 errs() << storeVal->getName() << " is not a global value\n";
-                return;
-                // FIX THIS LATER
+				currently_reversing = false;
             }
+			
+			getUseDef(&I, bucket);
+			
+			errs() << I << "\n";
+			errs() << "Bucket contains:\n";
+			for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
+				 it != e; ++it) {
+				errs() << **it << "\n";
+			}
+			
+			while (bucket.size()) {
+				Value *v = bucket.back();
+				bucket.pop_back();
+				
+				if (Instruction *i = dyn_cast<Instruction>(v)) {
+					visit(i);
+				}
+			}
+		}
+		
+		void visitLoadInst(LoadInst &I) {
+			errs() << "\n\n\nLOAD INSTRUCTION\n";
+			
+			Value *valOfI = &I;
+			
+			Value *loadVal = I.getPointerOperand();
+			if (isa<GlobalValue>(loadVal)) {
+				errs() << loadVal->getName() << " is a global value\n";
+			}
+			else {
+				errs() << loadVal->getName() << " is not a global value\n";
+			}
+			
+			/// Create a new load
+			LoadInst *inst = builder.CreateLoad(loadVal);
+			
+			oldToNew[valOfI] = inst;
+			outputMap();
+			errs() << "\n\n\nLOAD INSTRUCTION END\n";
+		}
+		
+		void visitBinaryOperator(BinaryOperator &I) {
+			Value *newInstruction;
+			DEBUG(errs() << "\n\n\nBINARY OPERATOR\n");
             
-            //builder.Cr
-        }
+			if (I.getOpcode() == Instruction::Add) {
+				DEBUG(errs() << "ADD INSTRUCTION\n");
+                //DEBUG(errs() << "lastVal: " << *lastVal << "\n");
+                DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+				//lastVal = builder.CreateSub(lastVal, I.getOperand(1));
+				newInstruction = builder.CreateSub(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+			}
+			
+			if (I.getOpcode() == Instruction::Sub) {
+				DEBUG(errs() << "SUB INSTRUCTION\n");
+                //DEBUG(errs() << "lastVal: " << *lastVal << "\n");
+                DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+				//lastVal = builder.CreateAdd(lastVal, I.getOperand(1));
+				newInstruction = builder.CreateAdd(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+			}
+			
+			if (I.getOpcode() == Instruction::Mul) {
+				DEBUG(errs() << "MULT INSTRUCTION\n");
+                //DEBUG(errs() << "lastVal: " << *lastVal << "\n");
+                DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+				//lastVal = builder.CreateSDiv(lastVal, I.getOperand(1));
+                //lastVal = builder.CreateSDiv(I.getOperand(0), I.getOperand(1));
+				newInstruction = builder.CreateSDiv(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+			}
+			
+			oldToNew[&I] = newInstruction;
+		}
+		
+		/// Collect all use-defs into a container
+		void getUseDef(User *I, std::vector<Value *> &bucket, int indent = 0) {
+			if (indent == 0) {
+				DEBUG(errs() << "uses\n");
+			}
+			
+            int uses = 0;
+            
+			for (User::op_iterator i = I->op_begin(), e = I->op_end();
+				 i != e; ++i) {
+				uses++;
+                
+				Value *v = *i;
+				
+				if (Instruction *w = dyn_cast<Instruction>(v)) {
+					errs() << std::string(2*indent, ' ');
+					DEBUG(errs() << "outputing instruction dependent: " << *w << '\n');
+					
+					/// Don't store alloca's if that's a dependent!!!
+					if (!isa<AllocaInst>(w)) {
+						bucket.push_back(w);
+					}
+					//bucket.push_back(w);
+					getUseDef(w, bucket, indent + 1);
+					errs() << std::string(2*indent, ' ');
+                    DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
+				}
+                else {
+					errs() << std::string(2*indent, ' ');
+                    DEBUG(errs() << "This is a " << v->getType()->getDescription() << "\n");
+                }
+				
+				
+				/*
+				 else if (Operator *w = dyn_cast<Operator>(v)) {
+				 getUseDef(w, indent + 1);
+				 } else if (Constant *w = dyn_cast<Constant>(v)) {
+				 getUseDef(w, indent + 1);
+				 }
+				 */
+			}
+			errs() << std::string(2*indent, ' ');
+            DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
+		}
     };
     
     class Swapper {
@@ -159,6 +337,7 @@ namespace {
                 }
             }
             errs() << "\\BARBAR\n";
+			return 0;
         }
         
         Function *createReverseFunction(Module &M)
@@ -185,7 +364,7 @@ namespace {
             SmallVectorImpl<ReturnInst*> Returns(1);
             CloneFunctionInto(reverse, M.getFunction(OverFunc), vmap, true, Returns, "_reverse");
             
-            reverse->viewCFG();
+            //reverse->viewCFG();
             
             return reverse;
         }
@@ -501,21 +680,153 @@ namespace {
             return;
         }
         
+		void eraseBlockContents(BasicBlock *bb) {
+			BasicBlock::iterator bbi, bbe;
+			
+			errs() << "Erasing contents of basic block " << bb->getName() << "\n";
+			
+			std::vector<Instruction*> ivec;
+			
+			for (bbi = bb->begin(), bbe = bb->end(); bbi != bbe; ++bbi) {
+				if (!isa<TerminatorInst>(bbi)) {
+					//
+					ivec.push_back(bbi);
+				}
+			}
+			
+			while (ivec.size()) {
+				Instruction *i = ivec.back();
+				ivec.pop_back();
+				i->eraseFromParent();
+			}
+		}
+		
+		/// Negate a binary operator and all of its deps.
+		/// Use a builder to handle it.
+		void negateStoreInstruction(StoreInst *b) {
+			std::vector<Value *> bucket;
+			//getUseDef(b, bucket);
+			
+			errs() << "\n\n\nAfter negateStoreInstruction bucket holds:\n";
+			std::vector<Value *>::iterator it = bucket.end(), begin = bucket.begin();
+			--it;
+			
+			int num = 0;
+			
+			std::vector<Value *>::reverse_iterator rit(bucket.end()), re(bucket.begin());
+			for (; rit != re; ++rit) {
+				errs() << num++ << ": " << "(" << b->getParent()->getName() << ") " << **rit << "\n";
+			}
+			
+		}
         
+		virtual void getAnalysisUsage(AnalysisUsage &Info) const
+		{
+			//Info.addRequired<AliasAnalysis>();
+			Info.addRequired<MemoryDependenceAnalysis>();
+			//Info.addRequiredTransitive<MemoryDependenceAnalysis>();
+		}
+		
+		//virtual bool
+		
         virtual bool runOnModule(Module &M) {
             if (Function *rev = M.getFunction(OverFunc)) {
                 DEBUG(errs() << "Found " << OverFunc << "\n");
                 
                 Function *target = createReverseFunction(M);
+				
+				target->deleteBody();
+				
+				DEBUG(errs() << "HERE\n");
+				
+				for (Function::iterator i = rev->begin(), e = rev->end(); i != e; ++i) {
+					/// Create our BasicBlock
+					BasicBlock *block = BasicBlock::Create(getGlobalContext(),
+														   "", target);
+					IRBuilder<> builder(block);
+					/// Create a new Inverter (one for each BB)
+					Inverter inv(builder);
+					
+					std::stack<StoreInst*> stores;
+					
+					for (BasicBlock::iterator j = i->begin(), k = i->end(); j != k; ++j) {
+						if (AllocaInst *a = dyn_cast<AllocaInst>(j)) {
+							inv.visitAllocaInst(*a);
+						}
+						
+						if (TerminatorInst *t = dyn_cast<TerminatorInst>(j)) {
+							inv.visitTerminatorInst(*t);
+						}
+						
+						if (StoreInst *b = dyn_cast<StoreInst>(j)) {
+							//negateStoreInstruction(b);
+							//Inverter inv;
+							
+							//AliasAnalysis AA = getAnalysis<AliasAnalysis>();
+							
+							//errs() << "Got AA\n";
+							
+							MemDepResult mdr;
+														
+							MemoryDependenceAnalysis& mda = getAnalysis<MemoryDependenceAnalysis>(*rev);
+														
+							DEBUG(errs() << "Got MDR\n");
+							
+							mdr = mda.getDependency(b);
+							
+							DEBUG(errs() << "Instruction " << *b << ": ");
+							
+							DEBUG(errs() << "MDR: " << *mdr.getInst() << "\n");
+							
+							// Make sure local stores only store to local loads
+							if (!isa<GlobalValue>(b->getPointerOperand())) {
+								if (LoadInst *l = dyn_cast<LoadInst>(mdr.getInst())) {
+									assert(l->getPointerOperand() == b->getPointerOperand());
+								}
+							}
+							
+							stores.push(b);
+							//inv.visitStoreInst(*b);
+						}
+					}
+					
+					StoreInst * cur;
+					while (stores.size()) {
+						cur = stores.top();
+						stores.pop();
+						
+						inv.visitStoreInst(*cur);
+					}
+					
+					errs() << "BASIC BLOCK\n";
+					errs() << *block << "\n";
+				}
+				
+				/*
+				for (inst_iterator I = inst_begin(rev), E = inst_end(rev); I != E; ++I) {
+					if (StoreInst *b = dyn_cast<StoreInst>(&*I)) {
+						negateStoreInstruction(b);
+					}
+				}
+				 */
+				
+				
+				return true;
+				
+				target->viewCFG();
                 
                 // NEW STUFF HERE
+				
+#if 0
                 for (Function::iterator i = target->begin(), e = target->end(),
                      I = rev->begin(), E = rev->end(); i != e; ++i) {
                     // Print out the name of the basic block if it has one, and then the
                     // number of instructions that it contains
                     errs() << "Basic block (name=" << i->getName() << ") has "
                     << i->size() << " instructions.\n";
-                    
+					
+					eraseBlockContents(i);
+					
                     instructionStack.clear();
                     
                     for (BasicBlock::iterator j = i->begin(), f = i->end(),
@@ -606,6 +917,7 @@ namespace {
                         ++j;
                     }
                 }
+#endif 0
                 
                 target->viewCFG();
                 

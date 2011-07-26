@@ -40,7 +40,7 @@ llvm-gcc -emit-llvm hello.c -c -o hello.bc
 
 llvm-gcc -emit-llvm hello.c -S -o hello.ll
 
-opt -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < hello.bc > test.bc
+opt -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < hello.bc > test.bc
 
 llc -march=c test.bc
 
