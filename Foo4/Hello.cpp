@@ -74,10 +74,14 @@ namespace {
 		bool currently_reversing;
 		std::map<Value *, Value *> oldToNew;
 		IRBuilder<> &builder;
+		Value *lastVal;
 		
     public:
         
-		Inverter(IRBuilder<> &b): builder(b) { currently_reversing = true; }
+		Inverter(IRBuilder<> &b): builder(b) { 
+			currently_reversing = true;
+			lastVal = 0;
+		}
 		
 		Value * lookup(Value *k) {
 			errs() << "\n\n\nLOOKUP\n";
@@ -166,6 +170,12 @@ namespace {
 					visit(i);
 				}
 			}
+			
+			assert(lastVal && "lastVal not set!");
+			
+			builder.CreateStore(lastVal, storeVal);
+			
+			lastVal = 0;
 		}
 		
 		void visitLoadInst(LoadInst &I) {
@@ -222,6 +232,7 @@ namespace {
 			}
 			
 			oldToNew[&I] = newInstruction;
+			lastVal = newInstruction;
 		}
 		
 		/// Collect all use-defs into a container
