@@ -68,7 +68,9 @@ namespace {
 	
 	static cl::opt<std::string> TargetFunc("tgt-func",
 										   cl::desc("<func to output>"));//, llvm::cl::Required);
-    
+	
+	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
+	
     class Inverter : public InstVisitor<Inverter>
     {
 		bool currently_reversing;
@@ -110,7 +112,7 @@ namespace {
 		void visitTerminatorInst(TerminatorInst &I) {
 			errs() << "\n\n\nTERMINATOR INSTRUCTION\n";
 			
-			if (isa<ReturnInst>(I)) {
+			/* if (isa<ReturnInst>(I)) {
 				builder.CreateRetVoid();
 			}
 			if (isa<BranchInst>(I)) {
@@ -125,7 +127,54 @@ namespace {
 						builder.CreateBr(it);
 					}
 				}
+			} */
+			
+			int count = 0;
+			
+			BasicBlock *bb = I.getParent();
+            
+            for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
+                BasicBlock *Pred = *PI;
+                errs() << "pred of " << *bb << ": " << *Pred << "\n";
+                // ...
+                //pred_list.push_back(Pred);
+                
+                count++;
+            }
+			
+			BasicBlock *foo = builder.GetInsertBlock();
+			
+			errs() << "count is " << count << "\n";
+			
+			/// If count is zero, it must be the entry block so make it exit
+			if (count == 0) {
+				builder.CreateRetVoid();
+				return;
 			}
+			
+			/// Count is == 1 -- find the pred
+			if (count == 1) {
+				BasicBlock *pred = *pred_begin(bb);
+				BasicBlock *newSucc = bbmOldToNew[pred];
+				builder.CreateBr(newSucc);
+				return;
+			}
+			/* if (BranchInst *b = dyn_cast<BranchInst>(&I)) {
+				if (b->isUnconditional()) {
+					BasicBlock *oldSucc = b->getSuccessor(0);
+					BasicBlock *newSucc = static_cast<BasicBlock*>(oldToNew[oldSucc]);
+					builder.CreateBr(newSucc);
+					return;
+				}
+				else {
+					assert(0 && "Conditional branches not yet supported!\n");
+				}
+
+			} */
+			
+			errs() << "I is a " << I << "\n";
+			
+			assert(0 && "Unhandled terminator instruction!\n");
 		}
 		
 		void visitAllocaInst(AllocaInst &I) {
@@ -298,8 +347,9 @@ namespace {
         std::list<Instruction*> instructionStack;
         std::list<Instruction*> reverseInstructionStack;
 		
-        std::map<BasicBlock *, BasicBlock *> newToOld;
-        std::map<BasicBlock *, BasicBlock *> oldToNew;
+		/// BBM = BasicBlock Map
+        std::map<BasicBlock *, BasicBlock *> bbmNewToOld;
+        //std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
         
         std::map<const Value *, Value *> duals;
         
@@ -455,7 +505,7 @@ namespace {
                 errs() << "count is one\n";
                 BasicBlock *key = pred_list[0];
                 errs() << "Our key is " << *key << "\n";
-                BasicBlock *data = oldToNew[key];
+                BasicBlock *data = bbmOldToNew[key];
                 errs() << "Our data is " << *data << "\n";
                 builder->CreateBr(data);
             }
@@ -748,26 +798,53 @@ namespace {
 				
 				target->deleteBody();
 				
+				//std::map<BasicBlock*,BasicBlock*> oldToNew;
+				//std::map<BasicBlock*,BasicBlock*> oldToNewRev;
+				
+				/// Put exit BB first in function
+				BasicBlock *bb = findExitBlock(*rev);
+				BasicBlock *newBlock = BasicBlock::Create(getGlobalContext(),
+														  "rev_exit", target);
+				bbmOldToNew[bb] = newBlock;
+				bbmNewToOld[newBlock] = bb;
+				
+				/// Make analogs to all BBs in function
+				Function::iterator fi, fe;
+				for (fi = rev->begin(), fe = rev->end(); fi != fe; ++fi) {
+					if (bb == fi) {
+						continue;
+					}
+					BasicBlock *block = BasicBlock::Create(getGlobalContext(),
+														   fi->getName() +
+														   "_rev", target);
+					bbmOldToNew[fi] = block;
+					bbmNewToOld[block] = fi;
+				}
+				
 				DEBUG(errs() << "HERE\n");
 				
-				for (Function::iterator i = rev->begin(), e = rev->end(); i != e; ++i) {
+				for (fi = rev->begin(), fe = rev->end(); fi != fe; ++fi) {
 					/// Create our BasicBlock
-					BasicBlock *block = BasicBlock::Create(getGlobalContext(),
-														   "", target);
+					//BasicBlock *block = BasicBlock::Create(getGlobalContext(),
+					//									   "", target);
+					BasicBlock *block = bbmOldToNew[fi];
+					
 					IRBuilder<> builder(block);
 					/// Create a new Inverter (one for each BB)
 					Inverter inv(builder);
 					
 					std::stack<StoreInst*> stores;
 					
-					for (BasicBlock::iterator j = i->begin(), k = i->end(); j != k; ++j) {
+					for (BasicBlock::iterator j = fi->begin(), k = fi->end(); j != k; ++j) {
 						if (AllocaInst *a = dyn_cast<AllocaInst>(j)) {
 							inv.visitAllocaInst(*a);
 						}
 						
+						/*
 						if (TerminatorInst *t = dyn_cast<TerminatorInst>(j)) {
 							inv.visitTerminatorInst(*t);
 						}
+						 */
 						
 						if (StoreInst *b = dyn_cast<StoreInst>(j)) {
 							//negateStoreInstruction(b);
@@ -807,6 +884,12 @@ namespace {
 						stores.pop();
 						
 						inv.visitStoreInst(*cur);
+					}
+					
+					for (BasicBlock::iterator j = fi->begin(), k = fi->end(); j != k; ++j) {
+						if (TerminatorInst *t = dyn_cast<TerminatorInst>(j)) {
+							inv.visitTerminatorInst(*t);
+						}
 					}
 					
 					errs() << "BASIC BLOCK\n";
@@ -942,7 +1025,7 @@ namespace {
                 //BasicBlock *newEntryBB = BasicBlock::Create(M.getContext(), "r_" + oldBB->getName(), target);
                 ValueToValueMapTy VMap;
                 BasicBlock *newEntryBB = CloneBasicBlock(oldBB, VMap, "", target);
-                newToOld.insert(std::make_pair(newEntryBB, oldBB));
+                bbmNewToOld.insert(std::make_pair(newEntryBB, oldBB));
                 
                 // Create all the new (empty) BBs
                 for (Function::iterator i = rev->begin(), e = rev->end(); i != e; ++i) {
@@ -955,20 +1038,20 @@ namespace {
                     ValueToValueMapTy VMap;
                     BasicBlock *newBB = CloneBasicBlock(bb, VMap, "", target);
                     errs() << "Reverse BB info: " << newBB->getName() << "\n";
-                    newToOld.insert(std::make_pair(newBB, bb));
-                    oldToNew.insert(std::make_pair(bb, newBB));
+                    bbmNewToOld.insert(std::make_pair(newBB, bb));
+                    bbmOldToNew.insert(std::make_pair(bb, newBB));
                 }
                 
                 //target->viewCFG();
                 
-                for (std::map<BasicBlock *, BasicBlock *>::iterator it = newToOld.begin(), e = newToOld.end();
+                for (std::map<BasicBlock *, BasicBlock *>::iterator it = bbmNewToOld.begin(), e = bbmNewToOld.end();
                      it != e; ++it) {
                     errs() << *(*it).first << ": " << *(*it).second << "\n";
                 }
                 
                 errs() << "**********************************\n\n";
                 
-                for (std::map<BasicBlock *, BasicBlock *>::iterator it = newToOld.begin(), e = newToOld.end(); 
+                for (std::map<BasicBlock *, BasicBlock *>::iterator it = bbmNewToOld.begin(), e = bbmNewToOld.end(); 
                      it != e; ++it) {
                     //errs() << *(*it).first << ": " << *(*it).second << "\n";
                     reverseBlockInto((*it).second, (*it).first);
