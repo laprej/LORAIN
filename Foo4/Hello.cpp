@@ -71,6 +71,64 @@ namespace {
 	
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
 	
+	/// This class will apply the necessary instrumentation on the forward path
+	class Instrumenter : public InstVisitor<Instrumenter>
+	{
+		Module &M;
+	public:
+		Instrumenter(Module &mod): M(mod) {
+		}
+		
+		void visitCmpInst(CmpInst &I) {
+			/*
+             * What we need to do here is emit a new global variable and assign
+             * it the result of the cmp instruction in the function to be
+             * reversed.
+             */
+            DEBUG(errs() << "COMPARE INSTRUCTION\n");
+			
+			if (I.getMetadata("jml.new.var")) {
+				return;
+			}
+			
+			/* Instruction *pi = ...;
+			Instruction *newInst = new Instruction(...);
+
+			pi->getParent()->getInstList().insert(pi, newInst); */
+			
+			Instruction *pi = &I;
+			Instruction *newInst = I.clone();
+			
+			
+			/// See DIBuilder.cpp for more examples
+			Value *Elts[] = {
+				//MDString::get(getGlobalContext(), "jml.new.var"),
+				ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+				ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+				llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
+				ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+				llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
+			};
+			
+			MDNode *Node = MDNode::get(getGlobalContext(), 0);
+			//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
+			//NMD->addOperand(Node);
+			
+			newInst->setMetadata("jml.new.var", Node);
+			
+			if (newInst->hasMetadata()) {
+				errs() << "has metadata\n";
+			}
+			else {
+				errs() << "does not have metadata\n";
+			}
+			if (MDNode *N = newInst->getMetadata("jml")) {
+				errs() << "We found JML\n";
+			}
+			pi->getParent()->getInstList().insertAfter(pi, newInst);
+		}
+	};
+	
     class Inverter : public InstVisitor<Inverter>
     {
 		bool currently_reversing;
@@ -174,7 +232,7 @@ namespace {
 			
 			errs() << "I is a " << I << "\n";
 			
-			assert(0 && "Unhandled terminator instruction!\n");
+			//assert(0 && "Unhandled terminator instruction!\n");
 		}
 		
 		void visitAllocaInst(AllocaInst &I) {
@@ -792,6 +850,10 @@ namespace {
 		
         virtual bool runOnModule(Module &M) {
             if (Function *rev = M.getFunction(OverFunc)) {
+				Instrumenter ins(M);
+				for (inst_iterator I = inst_begin(rev), E = inst_end(rev); I != E; ++I)
+					ins.visit(&*I);
+				
                 DEBUG(errs() << "Found " << OverFunc << "\n");
                 
                 Function *target = createReverseFunction(M);
