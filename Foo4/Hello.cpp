@@ -79,6 +79,15 @@ namespace {
 		Instrumenter(Module &mod): M(mod) {
 		}
 		
+		void markJML(Value *v) {
+			if (Instruction *I = dyn_cast<Instruction>(v)) {
+				MDNode *Node = MDNode::get(getGlobalContext(), 0);
+				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
+				//NMD->addOperand(Node);
+				I->setMetadata("jml", Node);
+			}
+		}
+		
 		void visitCmpInst(CmpInst &I) {
 			/*
              * What we need to do here is emit a new global variable and assign
@@ -87,45 +96,94 @@ namespace {
              */
             DEBUG(errs() << "COMPARE INSTRUCTION\n");
 			
-			if (I.getMetadata("jml.new.var")) {
-				return;
+#if 0
+			{
+				if (I.getMetadata("jml")) {
+					return;
+				}
+				
+				/* Instruction *pi = ...;
+				 Instruction *newInst = new Instruction(...);
+				 
+				 pi->getParent()->getInstList().insert(pi, newInst); */
+				
+				Instruction *pi = &I;
+				Instruction *newInst = I.clone();
+				
+				/*
+				 This is from http://llvm.org/docs/SourceLevelDebugging.html
+				 
+				 if (MDNode *N = I->getMetadata("dbg")) {  // Here I is an LLVM instruction
+				 DILocation Loc(N);                      // DILocation is in DebugInfo.h
+				 unsigned Line = Loc.getLineNumber();
+				 StringRef File = Loc.getFilename();
+				 StringRef Dir = Loc.getDirectory();
+				 }
+				 */
+				
+				/// See DIBuilder.cpp for more examples
+				Value *Elts[] = {
+					//MDString::get(getGlobalContext(), "jml.new.var"),
+					ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+					ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+					llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
+					ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
+					llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
+				};
+				
+				MDNode *Node = MDNode::get(getGlobalContext(), 0);
+				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
+				//NMD->addOperand(Node);
+				
+				newInst->setMetadata("jml", Node);
+				
+				if (newInst->hasMetadata()) {
+					errs() << "has metadata\n";
+				}
+				else {
+					errs() << "does not have metadata\n";
+				}
+				if (MDNode *N = newInst->getMetadata("jml")) {
+					errs() << "We found JML\n";
+				}
+				pi->getParent()->getInstList().insertAfter(pi, newInst);
 			}
+#endif
+			BasicBlock::iterator it(I);
+			++it;
+			IRBuilder<> b(it);
 			
-			/* Instruction *pi = ...;
-			Instruction *newInst = new Instruction(...);
-
-			pi->getParent()->getInstList().insert(pi, newInst); */
+			/// Manually emit the load, add, store for this
+			/// Don't forget to tag all this JML!
+			const Type *newGlobal = IntegerType::get(I.getContext(), 32);
+			Value *l = M.getOrInsertGlobal("bf", newGlobal);
+			markJML(l);
 			
-			Instruction *pi = &I;
-			Instruction *newInst = I.clone();
+			Value *ll = b.CreateLoad(l);
+			markJML(ll);
+			
+			errs() << "ll has type: " << ll->getType()->getDescription() << "\n";
+			errs() << "I has type: " << I.getType()->getDescription() << "\n";
+			
+			Value *lll = b.CreateCast(Instruction::Trunc, ll, I.getType());
+			markJML(lll);
+			
+			errs() << "lll has type: " << lll->getType()->getDescription() << "\n";
+			
+			Value *v = b.CreateNUWAdd(lll, &I);
+			markJML(v);
+			
+			errs() << "got here...\n";
+			
+			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
+			markJML(llll);
+			
+			errs() << "llll has type: " << llll->getType()->getDescription() << "\n";
+			
+			markJML(b.CreateStore(llll, l));
 			
 			
-			/// See DIBuilder.cpp for more examples
-			Value *Elts[] = {
-				//MDString::get(getGlobalContext(), "jml.new.var"),
-				ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
-				ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
-				llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
-				ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
-				llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
-			};
-			
-			MDNode *Node = MDNode::get(getGlobalContext(), 0);
-			//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
-			//NMD->addOperand(Node);
-			
-			newInst->setMetadata("jml.new.var", Node);
-			
-			if (newInst->hasMetadata()) {
-				errs() << "has metadata\n";
-			}
-			else {
-				errs() << "does not have metadata\n";
-			}
-			if (MDNode *N = newInst->getMetadata("jml")) {
-				errs() << "We found JML\n";
-			}
-			pi->getParent()->getInstList().insertAfter(pi, newInst);
+			errs() << "Here, too!\n";
 		}
 	};
 	
@@ -898,6 +956,10 @@ namespace {
 					std::stack<StoreInst*> stores;
 					
 					for (BasicBlock::iterator j = fi->begin(), k = fi->end(); j != k; ++j) {
+						if (j->getMetadata("jml")) {
+							continue;
+						}
+						
 						if (AllocaInst *a = dyn_cast<AllocaInst>(j)) {
 							inv.visitAllocaInst(*a);
 						}
