@@ -86,6 +86,13 @@ namespace {
 				//NMD->addOperand(Node);
 				I->setMetadata("jml", Node);
 			}
+			
+			if (CmpInst *I = dyn_cast<CmpInst>(v)) {
+				MDNode *Node = MDNode::get(getGlobalContext(), 0);
+				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
+				//NMD->addOperand(Node);
+				I->setMetadata("jml.icmp", Node);
+			}
 		}
 		
 		void visitCmpInst(CmpInst &I) {
@@ -149,6 +156,9 @@ namespace {
 				pi->getParent()->getInstList().insertAfter(pi, newInst);
 			}
 #endif
+			
+			markJML(&I);
+			
 			BasicBlock::iterator it(I);
 			++it;
 			IRBuilder<> b(it);
@@ -193,10 +203,11 @@ namespace {
 		std::map<Value *, Value *> oldToNew;
 		IRBuilder<> &builder;
 		Value *lastVal;
+		Module &M;
 		
     public:
         
-		Inverter(IRBuilder<> &b): builder(b) { 
+		Inverter(IRBuilder<> &b, Module &mod): builder(b), M(mod) { 
 			currently_reversing = true;
 			lastVal = 0;
 		}
@@ -274,6 +285,51 @@ namespace {
 				BasicBlock *newSucc = bbmOldToNew[pred];
 				builder.CreateBr(newSucc);
 				return;
+			}
+			
+			if (count == 2) {
+				/// We have two predecessors; we're going to need an "if"
+				errs() << "WE NEED A BRANCH\n";
+				/// Emit a load of bf, compare, and jump to appropriate BBs
+				
+				/// CURRENTLY WORKING ON THIS
+				/// Manually emit the load & cmp the bf
+				/// Don't forget to tag all this JML!
+				const Type *newGlobal = IntegerType::get(I.getContext(), 32);
+				Value *l = M.getOrInsertGlobal("bf", newGlobal);
+				//markJML(l);
+				
+				Value *ll = builder.CreateLoad(l);
+				//markJML(ll);
+				
+				errs() << "ll has type: " << ll->getType()->getDescription() << "\n";
+				errs() << "I has type: " << I.getType()->getDescription() << "\n";
+				
+				Value *lll = builder.CreateCast(Instruction::Trunc, ll, IntegerType::get(I.getContext(), 1));
+				//markJML(lll);
+				
+				errs() << "lll has type: " << lll->getType()->getDescription() << "\n";
+				
+				/*
+				
+				Value *v = builder.CreateNUWAdd(lll, &I);
+				//markJML(v);
+				
+				errs() << "got here...\n";
+				
+				Value *llll = builder.CreateCast(Instruction::SExt, v, ll->getType());
+				//markJML(llll);
+				
+				errs() << "llll has type: " << llll->getType()->getDescription() << "\n";
+				
+				//markJML(b.CreateStore(llll, l));
+				
+				
+				errs() << "Here, too!\n";
+				
+				exit(-1);
+				*/
+				
 			}
 			/* if (BranchInst *b = dyn_cast<BranchInst>(&I)) {
 				if (b->isUnconditional()) {
@@ -951,7 +1007,7 @@ namespace {
 					
 					IRBuilder<> builder(block);
 					/// Create a new Inverter (one for each BB)
-					Inverter inv(builder);
+					Inverter inv(builder, M);
 					
 					std::stack<StoreInst*> stores;
 					
