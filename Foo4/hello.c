@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+int bf;
+
 int x;
 //int y;
 int abc;
@@ -15,25 +17,25 @@ void foobar(void)
   //  x = x - y;
   ///*
 
-  /*
+  ///*
   if (x > 0) {
     x = x + 1;
   }
-  else {
-    x = x - 1;
-  }
-  */
-  int y = 2;
-  y = y * 3;
-  y = y / 2;
-  y = y * x;
-  x = x * y;
+  //*/
+  //  int y = 2;
+  //  y = y * 3;
+  //  y = y / 2;
+  //  y = y * x;
+  //  x = x * y;
   x = x * 3;
+  x = x - 3;
   x = x * 4;
 }
 
 int main()
 {
+  bf = 0;
+
   x = 16;
   //  y = 42;
 
