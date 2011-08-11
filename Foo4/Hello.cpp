@@ -88,10 +88,25 @@ namespace {
 			}
 			
 			if (CmpInst *I = dyn_cast<CmpInst>(v)) {
-				MDNode *Node = MDNode::get(getGlobalContext(), 0);
-				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
-				//NMD->addOperand(Node);
-				I->setMetadata("jml.icmp", Node);
+				/// Assert that the next instruction is a branch
+				BasicBlock::iterator it(I);
+				++it;
+				if (BranchInst *B = dyn_cast<BranchInst>(it)) {
+					assert(B->getNumSuccessors() == 2 && "Branch doesn't have two sucessors!");
+					BasicBlock *then = B->getSuccessor(0);
+					BasicBlock *el = B->getSuccessor(1);
+					Value *Elts[] = {
+						then,
+						el
+					};
+					MDNode *Node = MDNode::get(getGlobalContext(), Elts);
+					//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
+					//NMD->addOperand(Node);
+					I->setMetadata("jml.icmp", Node);
+				}
+				else {
+					assert(isa<BranchInst>(it) && "CmpInst not followed by BranchInst!");
+				}
 			}
 		}
 		
