@@ -96,12 +96,12 @@ namespace {
 					BasicBlock *then = B->getSuccessor(0);
 					BasicBlock *el = B->getSuccessor(1);
 					Value *Elts[] = {
-						then,
-						el
+						MDString::get(getGlobalContext(), then->getName()),
+						MDString::get(getGlobalContext(), el->getName())
 					};
 					MDNode *Node = MDNode::get(getGlobalContext(), Elts);
-					//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
-					//NMD->addOperand(Node);
+					NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.icmp");
+					NMD->addOperand(Node);
 					I->setMetadata("jml.icmp", Node);
 				}
 				else {
@@ -303,6 +303,12 @@ namespace {
 			}
 			
 			if (count == 2) {
+				NamedMDNode *nmd = M.getNamedMetadata("jml.icmp");
+				assert(nmd);
+				errs() << "NMD: " << nmd->getName();// << "\n";
+				errs() << " has " << nmd->getNumOperands() << " operands\n";
+				MDNode *md = nmd->getOperand(0);
+				errs() << md->getName() << " has " << md->getNumOperands() << " operands\n";
 				/// We have two predecessors; we're going to need an "if"
 				errs() << "WE NEED A BRANCH\n";
 				/// Emit a load of bf, compare, and jump to appropriate BBs
@@ -995,7 +1001,7 @@ namespace {
 				/// Put exit BB first in function
 				BasicBlock *bb = findExitBlock(*rev);
 				BasicBlock *newBlock = BasicBlock::Create(getGlobalContext(),
-														  "rev_exit", target);
+														  "exit_rev", target);
 				bbmOldToNew[bb] = newBlock;
 				bbmNewToOld[newBlock] = bb;
 				
