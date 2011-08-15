@@ -27,6 +27,7 @@ void foobar(void)
   //  y = y / 2;
   //  y = y * x;
   //  x = x * y;
+  x = x + 14;
   x = x * 3;
   x = x - 3;
   x = x * 4;
@@ -36,7 +37,10 @@ int main()
 {
   bf = 0;
 
-  x = 16;
+  printf("Please enter an 0 or 1 for x: ");
+  scanf("%d", &x);
+
+  //x = 0;
   //  y = 42;
 
   printf("The value of x is %d\n", x);

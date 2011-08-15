@@ -309,6 +309,10 @@ namespace {
 				errs() << " has " << nmd->getNumOperands() << " operands\n";
 				MDNode *md = nmd->getOperand(0);
 				errs() << md->getName() << " has " << md->getNumOperands() << " operands\n";
+				MDString* then = dyn_cast_or_null<MDString>(md->getOperand(0));
+				assert(then);
+				MDString* el   = dyn_cast_or_null<MDString>(md->getOperand(1));
+				assert(el);
 				/// We have two predecessors; we're going to need an "if"
 				errs() << "WE NEED A BRANCH\n";
 				/// Emit a load of bf, compare, and jump to appropriate BBs
@@ -330,6 +334,38 @@ namespace {
 				//markJML(lll);
 				
 				errs() << "lll has type: " << lll->getType()->getDescription() << "\n";
+				
+				Value *llll = builder.CreateICmpEQ(lll, builder.getInt1(true));
+				
+				BasicBlock *thenBB = 0, *elBB = 0;
+				Function *F = foo->getParent();
+				/// Find the "then" block
+				Function::iterator it, E;
+				for (it = F->begin(), E = F->end(); it != E; ++it) {
+					std::string str = then->getString();
+					str += "_rev";
+					errs() << "Comparing " << str << " and " << it->getName();
+					if (str == it->getName()) {
+						errs() << " Got it!\n";
+						thenBB = it;
+					}
+					errs() << "\n";
+					
+					std::string str2 = el->getString();
+					str2 += "_rev";
+					errs() << "Comparing " << str2 << " and " << it->getName();
+					if (str2 == it->getName()) {
+						errs() << " Got it!\n";
+						elBB = it;
+					}
+					errs() << "\n";
+				}
+				
+				assert(thenBB);
+				assert(elBB);
+				/// Create a branch instruction here that jumps to the bb names
+				/// stored in the metadata
+				builder.CreateCondBr(llll, thenBB, elBB);
 				
 				/*
 				
