@@ -79,6 +79,66 @@ namespace {
 		Instrumenter(Module &mod): M(mod) {
 		}
 		
+		/* /// GetOrCreateAnchor - Look up an anchor for the specified tag and name.  If it
+		/// already exists, return it.  If not, create a new one and return it.
+		DIAnchor DIFactory::GetOrCreateAnchor(unsigned TAG, const char *Name) {
+			const Type *EltTy = StructType::get(Type::Int32Ty, Type::Int32Ty, NULL);
+			
+			// Otherwise, create the global or return it if already in the module.
+			Constant *C = M.getOrInsertGlobal(Name, EltTy);
+			assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
+			GlobalVariable *GV = cast<GlobalVariable>(C);
+			
+			// If it has an initializer, it is already in the module.
+			if (GV->hasInitializer()) 
+				return SubProgramAnchor = DIAnchor(GV);
+			
+			GV->setLinkage(GlobalValue::LinkOnceAnyLinkage);
+			GV->setSection("llvm.metadata");
+			GV->setConstant(true);
+			M.addTypeName("llvm.dbg.anchor.type", EltTy);
+			
+			// Otherwise, set the initializer.
+			Constant *Elts[] = {
+				GetTagConstant(dwarf::DW_TAG_anchor),
+				ConstantInt::get(Type::Int32Ty, TAG)
+			};
+			
+			GV->setInitializer(ConstantStruct::get(Elts, 2));
+			return DIAnchor(GV);
+		} */
+		
+		Constant * insertBitField(const char *Name) {
+			const Type *Ty = IntegerType::get(getGlobalContext(), 32);
+			
+			Constant *C = M.getOrInsertGlobal(Name, Ty);
+			assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
+			GlobalVariable *GV = cast<GlobalVariable>(C);
+			
+			// If it has an initializer, it is already in the module.
+			if (GV->hasInitializer()) {
+				assert(0 && "Re-creating existing variable!");
+			}
+			
+			GV->setLinkage(GlobalValue::LinkOnceAnyLinkage);
+			//GV->setSection("llvm.metadata");
+			GV->setConstant(false);
+			//M.addTypeName("llvm.dbg.anchor.type", EltTy);
+			
+			// Otherwise, set the initializer.
+			//Constant *Elts[] = {
+			//	GetTagConstant(dwarf::DW_TAG_anchor),
+			//	ConstantInt::get(Type::Int32Ty, TAG)
+			//};
+			//
+			//GV->setInitializer(ConstantStruct::get(Elts, 2));
+			
+			IRBuilder<> temp(getGlobalContext());
+			GV->setInitializer(temp.getInt32(0));
+			
+			return C;
+		}
+		
 		void markJML(Value *v) {
 			if (Instruction *I = dyn_cast<Instruction>(v)) {
 				MDNode *Node = MDNode::get(getGlobalContext(), 0);
@@ -180,8 +240,10 @@ namespace {
 			
 			/// Manually emit the load, add, store for this
 			/// Don't forget to tag all this JML!
-			const Type *newGlobal = IntegerType::get(I.getContext(), 32);
-			Value *l = M.getOrInsertGlobal("bf", newGlobal);
+			//const Type *newGlobal = IntegerType::get(I.getContext(), 32);
+			//Value *l = M.getOrInsertGlobal("bf", newGlobal);
+			
+			Value *l = insertBitField("bf");
 			markJML(l);
 			
 			Value *ll = b.CreateLoad(l);

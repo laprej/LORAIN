@@ -1,7 +1,5 @@
 #include <stdio.h>
 
-int bf;
-
 int x;
 //int y;
 int abc;
@@ -35,8 +33,6 @@ void foobar(void)
 
 int main()
 {
-  bf = 0;
-
   printf("Please enter an 0 or 1 for x: ");
   scanf("%d", &x);
 
