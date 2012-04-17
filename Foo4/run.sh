@@ -19,12 +19,12 @@ if [ -d "$DIRECTORY" ]; then
 fi
 
 # odin directory layout
-DIRECTORY="/Users/laprej/temp/llvm-mac-install/bin"
+DIRECTORY="/Users/laprej/temp/llvm-3.0-install/bin"
 
 if [ -d "$DIRECTORY" ]; then
 #    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
-    LIB="/Users/laprej/temp/llvm-mac-install/lib/LLVMFoo4.dylib"
+    LIB="/Users/laprej/temp/llvm-3.0-install/lib/LLVMFoo4.dylib"
 #    echo $PATH
 fi
 

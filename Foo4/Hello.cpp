@@ -109,7 +109,7 @@ namespace {
 		} */
 		
 		Constant * insertBitField(const char *Name) {
-			const Type *Ty = IntegerType::get(getGlobalContext(), 32);
+			Type *Ty = IntegerType::get(getGlobalContext(), 32);
 			
 			Constant *C = M.getOrInsertGlobal(Name, Ty);
 			assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
@@ -249,13 +249,13 @@ namespace {
 			Value *ll = b.CreateLoad(l);
 			markJML(ll);
 			
-			errs() << "ll has type: " << ll->getType()->getDescription() << "\n";
-			errs() << "I has type: " << I.getType()->getDescription() << "\n";
+			errs() << "ll has type: " << ll->getType() << "\n";
+			errs() << "I has type: " << I.getType() << "\n";
 			
 			Value *lll = b.CreateCast(Instruction::Trunc, ll, I.getType());
 			markJML(lll);
 			
-			errs() << "lll has type: " << lll->getType()->getDescription() << "\n";
+			errs() << "lll has type: " << lll->getType() << "\n";
 			
 			Value *v = b.CreateNUWAdd(lll, &I);
 			markJML(v);
@@ -265,7 +265,7 @@ namespace {
 			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
 			markJML(llll);
 			
-			errs() << "llll has type: " << llll->getType()->getDescription() << "\n";
+			errs() << "llll has type: " << llll->getType() << "\n";
 			
 			markJML(b.CreateStore(llll, l));
 			
@@ -382,20 +382,20 @@ namespace {
 				/// CURRENTLY WORKING ON THIS
 				/// Manually emit the load & cmp the bf
 				/// Don't forget to tag all this JML!
-				const Type *newGlobal = IntegerType::get(I.getContext(), 32);
+                Type *newGlobal = IntegerType::get(I.getContext(), 32);
 				Value *l = M.getOrInsertGlobal("bf", newGlobal);
 				//markJML(l);
 				
 				Value *ll = builder.CreateLoad(l);
 				//markJML(ll);
 				
-				errs() << "ll has type: " << ll->getType()->getDescription() << "\n";
-				errs() << "I has type: " << I.getType()->getDescription() << "\n";
+				errs() << "ll has type: " << ll->getType() << "\n";
+				errs() << "I has type: " << I.getType() << "\n";
 				
 				Value *lll = builder.CreateCast(Instruction::Trunc, ll, IntegerType::get(I.getContext(), 1));
 				//markJML(lll);
 				
-				errs() << "lll has type: " << lll->getType()->getDescription() << "\n";
+				errs() << "lll has type: " << lll->getType() << "\n";
 				
 				Value *llll = builder.CreateICmpEQ(lll, builder.getInt1(true));
 				
@@ -604,7 +604,7 @@ namespace {
 				}
                 else {
 					errs() << std::string(2*indent, ' ');
-                    DEBUG(errs() << "This is a " << v->getType()->getDescription() << "\n");
+                    DEBUG(errs() << "This is a " << v->getType() << "\n");
                 }
 				
 				
@@ -674,8 +674,8 @@ namespace {
                             errs() << v->getName() << " ";
                         }
                         else {
-                            Value *v = dyn_cast<Value>(u);
-                            errs() << "v_" << v->getName() << " ";
+                            Value *w = dyn_cast<Value>(u);
+                            errs() << "w_" << w->getName() << " ";
                         }
                     }
                     errs() << "\n";
