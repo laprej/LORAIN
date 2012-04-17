@@ -44,10 +44,12 @@ echo "opt -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=
 
 opt -break-crit-edges -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < hello.bc > test.bc
 
-llc -march=c test.bc
+llc test.bc
 
 llvm-dis test.bc
 
-gcc test.cbe.c
+#gcc test.cbe.c
+
+clang test.s
 
 exit

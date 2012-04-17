@@ -8,23 +8,9 @@ void barbar(void);
 
 void foobar(void)
 {
-  //  int i;
-  //  int y = 42;
-  //  y = y * 2;
-  //  x = x * 3;
-  //  x = x - y;
-  ///*
-
-  ///*
   if (x > 0) {
     x = x + 1;
   }
-  //*/
-  //  int y = 2;
-  //  y = y * 3;
-  //  y = y / 2;
-  //  y = y * x;
-  //  x = x * y;
   x = x + 14;
   x = x * 3;
   x = x - 3;
