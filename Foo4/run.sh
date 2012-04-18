@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "Running script with $1 as argument"
+
 # Army directory layout
 DIRECTORY="/Users/jlapre/temp/llvm-mac-install/bin"
 
@@ -36,27 +38,33 @@ if [ -d "$DIRECTORY" ]; then
 #    echo $PATH
 fi
 
-llvm-gcc -emit-llvm hello.c -c -o hello.bc
+if [ ! -f "$1.c" ]
+then
+    echo "$1.c not found!"
+    exit
+fi
 
-llvm-gcc -emit-llvm hello.c -S -o hello.ll
+llvm-gcc -emit-llvm $1.c -c -o $1.bc
 
-echo "opt -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < hello.bc > test.bc"
+llvm-gcc -emit-llvm $1.c -S -o $1.ll
 
-opt -break-crit-edges -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < hello.bc > test.bc
+echo "opt -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < $1.bc > $1-output.bc"
+
+opt -break-crit-edges -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < $1.bc > $1-output.bc
 
 echo "opt completed."
 
-llc test.bc
+llc $1-output.bc
 
 echo "llc completed."
 
-llvm-dis test.bc
+llvm-dis $1-output.bc
 
 echo "llvm-dis completed."
 
 #gcc test.cbe.c
 
-clang -c test.s
+clang -c $1-output.s
 
 echo "clang completed."
 
