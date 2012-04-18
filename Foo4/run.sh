@@ -44,6 +44,8 @@ echo "opt -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=
 
 opt -break-crit-edges -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < hello.bc > test.bc
 
+echo "opt completed."
+
 llc test.bc
 
 llvm-dis test.bc
