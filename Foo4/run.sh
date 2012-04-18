@@ -48,10 +48,16 @@ echo "opt completed."
 
 llc test.bc
 
+echo "llc completed."
+
 llvm-dis test.bc
+
+echo "llvm-dis completed."
 
 #gcc test.cbe.c
 
-clang test.s
+clang -c test.s
+
+echo "clang completed."
 
 exit
