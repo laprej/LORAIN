@@ -1,6 +1,10 @@
 #!/bin/sh
 
-echo "Running script with $1 as argument"
+if [ $# -ne 1 ]
+then
+  echo "Usage: `basename $0` {file}.c"
+  exit $E_BADARGS
+fi
 
 # Army directory layout
 DIRECTORY="/Users/jlapre/temp/llvm-mac-install/bin"
