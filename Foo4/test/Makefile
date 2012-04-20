@@ -7,7 +7,7 @@ test-objs = ${REV_OBJS} ${CATCH_OBJS}
 all: tester
 
 tester: ${test-objs} main.o
-	g++ main.o ${test-objs}
+	g++ -o tester main.o ${test-objs}
 
 .cpp.o:
 	g++ -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
