@@ -1,8 +1,8 @@
 #!/bin/sh
 
-if [ $# -ne 1 ]
+if [ $# -ne 3 ]
 then
-  echo "Usage: `basename $0` {file}.c"
+  echo "Usage: `basename $0` <file>.c <event_handler> <reverse_handler_to_emit>"
   exit $E_BADARGS
 fi
 
@@ -52,9 +52,9 @@ llvm-gcc -emit-llvm $1.c -c -o $1.bc
 
 llvm-gcc -emit-llvm $1.c -S -o $1.ll
 
-echo "opt -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < $1.bc > $1-output.bc"
+echo "opt -disable-verify -debug -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc"
 
-opt -break-crit-edges -disable-verify -debug -load "$LIB" -hello -rev-func=foobar -tgt-func=barbar < $1.bc > $1-output.bc
+opt -break-crit-edges -disable-verify -debug -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc
 
 echo "opt completed."
 
