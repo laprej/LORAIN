@@ -590,7 +590,7 @@ namespace {
 				Value *v = *i;
 				
 				if (Instruction *w = dyn_cast<Instruction>(v)) {
-					errs() << std::string(2*indent, ' ');
+					DEBUG(errs() << std::string(2*indent, ' '));
 					DEBUG(errs() << "outputing instruction dependent: " << *w << '\n');
 					
 					/// Don't store alloca's if that's a dependent!!!
@@ -599,11 +599,11 @@ namespace {
 					}
 					//bucket.push_back(w);
 					getUseDef(w, bucket, indent + 1);
-					errs() << std::string(2*indent, ' ');
+					DEBUG(errs() << std::string(2*indent, ' '));
                     DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
 				}
                 else {
-					errs() << std::string(2*indent, ' ');
+					DEBUG(errs() << std::string(2*indent, ' '));
                     DEBUG(errs() << "This is a " << v->getType() << "\n");
                 }
 				
@@ -616,7 +616,7 @@ namespace {
 				 }
 				 */
 			}
-			errs() << std::string(2*indent, ' ');
+			DEBUG(errs() << std::string(2*indent, ' '));
             DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
 		}
     };
