@@ -12,6 +12,7 @@ TEST_CASE("simple/add", "A simple test case where we add a constant")
     int y = test_add_x;
     
     test_add();
+    REQUIRE(test_add_x != y);
     undo_test_add();
     REQUIRE(test_add_x == y);
 }

@@ -1,4 +1,4 @@
-SRCS = test-add.c test-add2.c test-sub.c
+SRCS = test-add.c test-add2.c test-sub.c test-sub2.c
 REV_OBJS = ${SRCS:.c=-output.o}
 CATCH_OBJS = ${SRCS:.c=-catch.o}
 
@@ -20,6 +20,9 @@ test-add2-output.o:
 
 test-sub-output.o:
 	../run.sh test-sub test_sub undo_test_sub
+
+test-sub2-output.o:
+	../run.sh test-sub2 test_sub2 undo_test_sub2
 
 clean:
 	rm -f *.o *.s *.bc *.ll *~

@@ -12,6 +12,7 @@ TEST_CASE("simple/sub", "A simple test case where we subtract a constant")
     int y = test_sub_x;
     
     test_sub();
+    REQUIRE(test_sub_x != y);
     undo_test_sub();
     REQUIRE(test_sub_x == y);
 }

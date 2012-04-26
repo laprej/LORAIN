@@ -12,6 +12,7 @@ TEST_CASE("simple/add2", "Test multiple additions")
     int y = test_add_x2;
     
     test_add2();
+    REQUIRE(test_add_x2 != y);
     undo_test_add2();
     REQUIRE(test_add_x2 == y);
 }
