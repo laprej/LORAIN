@@ -249,13 +249,13 @@ namespace {
 			Value *ll = b.CreateLoad(l);
 			markJML(ll);
 			
-			errs() << "ll has type: " << ll->getType() << "\n";
-			errs() << "I has type: " << I.getType() << "\n";
+			errs() << "ll has type: " << *ll->getType() << "\n";
+			errs() << "I has type: " << *I.getType() << "\n";
 			
 			Value *lll = b.CreateCast(Instruction::Trunc, ll, I.getType());
 			markJML(lll);
 			
-			errs() << "lll has type: " << lll->getType() << "\n";
+			errs() << "lll has type: " << *lll->getType() << "\n";
 			
 			Value *v = b.CreateNUWAdd(lll, &I);
 			markJML(v);
@@ -265,7 +265,7 @@ namespace {
 			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
 			markJML(llll);
 			
-			errs() << "llll has type: " << llll->getType() << "\n";
+			errs() << "llll has type: " << *llll->getType() << "\n";
 			
 			markJML(b.CreateStore(llll, l));
 			
@@ -389,13 +389,13 @@ namespace {
 				Value *ll = builder.CreateLoad(l);
 				//markJML(ll);
 				
-				errs() << "ll has type: " << ll->getType() << "\n";
-				errs() << "I has type: " << I.getType() << "\n";
+				errs() << "ll has type: " << *ll->getType() << "\n";
+				errs() << "I has type: " << *I.getType() << "\n";
 				
 				Value *lll = builder.CreateCast(Instruction::Trunc, ll, IntegerType::get(I.getContext(), 1));
 				//markJML(lll);
 				
-				errs() << "lll has type: " << lll->getType() << "\n";
+				errs() << "lll has type: " << *lll->getType() << "\n";
 				
 				Value *llll = builder.CreateICmpEQ(lll, builder.getInt1(true));
 				
@@ -604,7 +604,7 @@ namespace {
 				}
                 else {
 					DEBUG(errs() << std::string(2*indent, ' '));
-                    DEBUG(errs() << "This is a " << v->getType() << "\n");
+                    DEBUG(errs() << "This is a " << *v->getType() << "\n");
                 }
 				
 				
