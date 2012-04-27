@@ -398,6 +398,11 @@ namespace {
 				errs() << "lll has type: " << *lll->getType() << "\n";
 				
 				Value *llll = builder.CreateICmpEQ(lll, builder.getInt1(true));
+                
+                /// Reset the bitfield
+                Value *lllll = builder.CreateSub(ll, ll);
+                /// Store back the bitfield
+                Value *llllll = builder.CreateStore(lllll, l);
 				
 				BasicBlock *thenBB = 0, *elBB = 0;
 				Function *F = foo->getParent();
