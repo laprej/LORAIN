@@ -5,6 +5,7 @@ CATCH_OBJS = ${SRCS:.c=-catch.o}
 test-objs = ${REV_OBJS} ${CATCH_OBJS}
 
 all: tester
+	./tester
 
 tester: ${test-objs} main.o
 	g++ -o tester main.o ${test-objs}
