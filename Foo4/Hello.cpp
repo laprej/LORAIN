@@ -75,8 +75,12 @@ namespace {
 	class Instrumenter : public InstVisitor<Instrumenter>
 	{
 		Module &M;
+        
+        unsigned bitFieldCount;// = 0;
+        
 	public:
 		Instrumenter(Module &mod): M(mod) {
+            bitFieldCount = 0;
 		}
 		
 		/* /// GetOrCreateAnchor - Look up an anchor for the specified tag and name.  If it
@@ -108,7 +112,20 @@ namespace {
 			return DIAnchor(GV);
 		} */
 		
-		Constant * insertBitField(const char *Name) {
+        std::string newBitFieldName(StringRef s)
+        {
+            //static unsigned bitFieldCount = 0;
+            //
+            Twine bff(s);
+            
+            bff = bff.concat(Twine(bitFieldCount++));
+            
+            errs() << "newBitFieldName is returning " << bff << "\n";
+            
+            return bff.str();
+        }
+        
+		Constant * insertBitField(StringRef Name) {
 			Type *Ty = IntegerType::get(getGlobalContext(), 32);
 			
 			Constant *C = M.getOrInsertGlobal(Name, Ty);
@@ -157,7 +174,9 @@ namespace {
 					BasicBlock *el = B->getSuccessor(1);
 					Value *Elts[] = {
 						MDString::get(getGlobalContext(), then->getName()),
-						MDString::get(getGlobalContext(), el->getName())
+						MDString::get(getGlobalContext(), el->getName()),
+                        ConstantInt::get(Type::getInt32Ty(getGlobalContext()), bitFieldCount)
+//                        MDString::get(getGlobalContext(), StringRef(bitFieldCount))
 					};
 					MDNode *Node = MDNode::get(getGlobalContext(), Elts);
 					NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.icmp");
@@ -232,6 +251,9 @@ namespace {
 			}
 #endif
 			
+            // We are creating a dangerous coupling here between our metadata
+            // necessary for marking a cmp instruction and our bitfield count.
+            // We'll have to revisit this if it becomes a problem
 			markJML(&I);
 			
 			BasicBlock::iterator it(I);
@@ -242,8 +264,10 @@ namespace {
 			/// Don't forget to tag all this JML!
 			//const Type *newGlobal = IntegerType::get(I.getContext(), 32);
 			//Value *l = M.getOrInsertGlobal("bf", newGlobal);
+            
+            StringRef bf = newBitFieldName("bf");
 			
-			Value *l = insertBitField("bf");
+			Value *l = insertBitField(bf);
 			markJML(l);
 			
 			Value *ll = b.CreateLoad(l);
@@ -312,6 +336,11 @@ namespace {
 			}
 			errs() << "MAP END\n";
 		}
+        
+        std::string findDiamondBf()
+        {
+            return "";
+        }
 		
 		void visitTerminatorInst(TerminatorInst &I) {
 			errs() << "\n\n\nTERMINATOR INSTRUCTION\n";
@@ -371,10 +400,12 @@ namespace {
 				errs() << " has " << nmd->getNumOperands() << " operands\n";
 				MDNode *md = nmd->getOperand(0);
 				errs() << md->getName() << " has " << md->getNumOperands() << " operands\n";
-				MDString* then = dyn_cast_or_null<MDString>(md->getOperand(0));
+				MDString *then = dyn_cast_or_null<MDString>(md->getOperand(0));
 				assert(then);
-				MDString* el   = dyn_cast_or_null<MDString>(md->getOperand(1));
+				MDString *el   = dyn_cast_or_null<MDString>(md->getOperand(1));
 				assert(el);
+                ConstantInt *bfn = dyn_cast_or_null<ConstantInt>(md->getOperand(2));
+                assert(bfn);
 				/// We have two predecessors; we're going to need an "if"
 				errs() << "WE NEED A BRANCH\n";
 				/// Emit a load of bf, compare, and jump to appropriate BBs
@@ -383,7 +414,11 @@ namespace {
 				/// Manually emit the load & cmp the bf
 				/// Don't forget to tag all this JML!
                 Type *newGlobal = IntegerType::get(I.getContext(), 32);
-				Value *l = M.getOrInsertGlobal("bf", newGlobal);
+                Twine bfX("bf");
+                bfX = bfX.concat(Twine(bfn->getZExtValue()));
+                errs() << "bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n";
+                errs() << "and bfX is " << bfX << "\n";
+				Value *l = M.getOrInsertGlobal(bfX.str(), newGlobal);
 				//markJML(l);
 				
 				Value *ll = builder.CreateLoad(l);
