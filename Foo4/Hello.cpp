@@ -71,6 +71,9 @@ namespace {
 	
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
 	
+#pragma mark
+#pragma mark Instrumenter
+    
 	/// This class will apply the necessary instrumentation on the forward path
 	class Instrumenter : public InstVisitor<Instrumenter>
 	{
@@ -298,6 +301,9 @@ namespace {
 		}
 	};
 	
+#pragma mark
+#pragma mark Inverter
+    
     class Inverter : public InstVisitor<Inverter>
     {
 		bool currently_reversing;
@@ -664,6 +670,9 @@ namespace {
     class Swapper {
         
     };
+    
+#pragma mark
+#pragma mark Hello
     
     // Hello - The first implementation, without getAnalysisUsage.
     struct Hello : public ModulePass {
