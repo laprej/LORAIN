@@ -404,6 +404,9 @@ namespace {
 			}
 			
 			if (count == 2) {
+                
+                findDiamondBf(I);
+                
 				NamedMDNode *nmd = M.getNamedMetadata("jml.icmp");
 				assert(nmd);
 				errs() << "NMD: " << nmd->getName();// << "\n";
@@ -704,7 +707,10 @@ namespace {
     {
         Function *f = I.getParent()->getParent();
         DominatorTree &DT = getAnalysis<DominatorTree>(*f);
-        errs() << "DT is " << &DT << "\n";
+        DomTreeNode *Rung = DT.getNode(I.getParent());
+        Rung = Rung->getIDom();
+        errs() << "Rung is " << Rung << "\n";
+        //errs() << "DT is " << DT << "\n";
     }
     
     BasicBlock *Hello::reverseBlock(BasicBlock *B)
