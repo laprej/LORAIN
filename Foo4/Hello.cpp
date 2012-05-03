@@ -347,9 +347,11 @@ namespace {
 			errs() << "MAP END\n";
 		}
         
-        void findDiamondBf(Instruction &I)
+        MDNode * findDiamondBf(Instruction &I)
         {
-            h->domTreeLookup(I);
+            MDNode * md = h->domTreeLookup(I);
+            
+            return md;
         }
 		
 		void visitTerminatorInst(TerminatorInst &I) {
@@ -405,14 +407,17 @@ namespace {
 			
 			if (count == 2) {
                 
-                findDiamondBf(I);
+                //findDiamondBf(I);
                 
 				NamedMDNode *nmd = M.getNamedMetadata("jml.icmp");
 				assert(nmd);
 				errs() << "NMD: " << nmd->getName();// << "\n";
 				errs() << " has " << nmd->getNumOperands() << " operands\n";
-				MDNode *md = nmd->getOperand(0);
-				errs() << md->getName() << " has " << md->getNumOperands() << " operands\n";
+				//MDNode *md = nmd->getOperand(0);
+                
+                MDNode *md = findDiamondBf(I);
+				
+                errs() << md->getName() << " has " << md->getNumOperands() << " operands\n";
 				MDString *then = dyn_cast_or_null<MDString>(md->getOperand(0));
 				assert(then);
 				MDString *el   = dyn_cast_or_null<MDString>(md->getOperand(1));
@@ -703,14 +708,36 @@ namespace {
     //        
     //        IRBuilder<> *builder;
     
-    void Hello::domTreeLookup(Instruction &I)
+    
+    /// Lookup our IDom (from a merge point) so we can find the correct
+    /// metadata to tell us where to go (BBs) and what to check (bitfields)
+    MDNode * Hello::domTreeLookup(Instruction &I)
     {
         Function *f = I.getParent()->getParent();
         DominatorTree &DT = getAnalysis<DominatorTree>(*f);
         DomTreeNode *Rung = DT.getNode(I.getParent());
         Rung = Rung->getIDom();
         errs() << "Rung is " << Rung << "\n";
-        //errs() << "DT is " << DT << "\n";
+        BasicBlock *bb = Rung->getBlock();
+        errs() << "BB is " << *bb << "\n";
+        
+        CmpInst *C = 0;
+        
+        // find the cmp
+        for (BasicBlock::iterator i = bb->begin(), e = bb->end(); i != e; ++i) {
+            if (C = dyn_cast<CmpInst>(i)) {
+                errs() << *C << "\n";
+                break;
+            }
+        }
+        
+        assert(C && "CmpInst not found!");
+        
+        MDNode *md = C->getMetadata("jml.icmp");
+        
+        assert(md && "No metadata found on CmpInst!");
+        
+        return md;
     }
     
     BasicBlock *Hello::reverseBlock(BasicBlock *B)

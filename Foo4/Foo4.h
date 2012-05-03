@@ -92,7 +92,7 @@ namespace {
         
         IRBuilder<> *builder;
         
-        void domTreeLookup(Instruction &I);
+        MDNode * domTreeLookup(Instruction &I);
         
         BasicBlock *reverseBlock(BasicBlock *B);
         
