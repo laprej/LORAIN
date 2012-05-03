@@ -1,4 +1,5 @@
-SRCS = test-add.c test-add2.c test-sub.c test-sub2.c test-mul.c test-mul2.c test-if.c test-if2.c
+SRCS = test-add.c test-add2.c test-sub.c test-sub2.c test-mul.c test-mul2.c test-if.c test-if2.c \
+test-if3.c
 REV_OBJS = ${SRCS:.c=-output.o}
 CATCH_OBJS = ${SRCS:.c=-catch.o}
 
@@ -36,6 +37,9 @@ test-if-output.o:
 
 test-if2-output.o:
 	../run.sh test-if2 test_if2 undo_test_if2
+
+test-if3-output.o:
+	../run.sh test-if3 test_if3 undo_test_if3
 
 clean:
 	rm -f *.o *.s *.bc *.ll *~
