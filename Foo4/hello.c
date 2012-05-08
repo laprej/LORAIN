@@ -16,7 +16,7 @@ void foobar(void)
   x = x - 3;
   x = x * 4;
 }
-
+/*
 int main()
 {
   printf("Please enter an 0 or 1 for x: ");
@@ -37,3 +37,4 @@ int main()
 
   return 0;
 }
+*/
