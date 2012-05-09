@@ -1,5 +1,5 @@
-SRCS = test-add.c test-add2.c test-sub.c test-sub2.c test-mul.c test-mul2.c test-if.c test-if2.c \
-test-if3.c
+SRCS = test-add.c test-add2.c test-sub.c test-sub2.c test-mul.c test-mul2.c \
+test-if.c test-if2.c test-if3.c
 REV_OBJS = ${SRCS:.c=-output.o}
 CATCH_OBJS = ${SRCS:.c=-catch.o}
 
