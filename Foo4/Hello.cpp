@@ -79,11 +79,12 @@ namespace {
 	class Instrumenter : public InstVisitor<Instrumenter>
 	{
 		Module &M;
+        Hello *h;
         
         unsigned bitFieldCount;// = 0;
         
 	public:
-		Instrumenter(Module &mod): M(mod) {
+		Instrumenter(Module &mod, Hello *H): M(mod), h(H) {
             bitFieldCount = 0;
 		}
 		
@@ -192,6 +193,24 @@ namespace {
 				}
 			}
 		}
+        
+        void throwOutPred(SmallVector<BasicBlock *, 4> &Preds)
+        {
+            assert(Preds.size() < 4 && "Don't yet support arb. size preds!");
+            
+            if (h->findDom(Preds[0]) == h->findDom(Preds[1])) {
+                Preds.erase(&Preds[2]);
+                return;
+            }
+            if (h->findDom(Preds[0]) == h->findDom(Preds[2])) {
+                Preds.erase(&Preds[1]);
+                return;
+            }
+            if (h->findDom(Preds[1]) == h->findDom(Preds[2])) {
+                Preds.erase(&Preds[0]);
+                return;
+            }
+        }
 		
 		void visitCmpInst(CmpInst &I) {
 			/*
@@ -299,6 +318,43 @@ namespace {
 			
 			
 			errs() << "Here, too!\n";
+            
+            
+            
+            //////////////// BIG CHANGE HERE //////////////////////
+            /// Create a diamond!  Unfortunately llvm will not generate
+            /// a merge point with just two preds (it just adds more on)
+            /// so we'll need to add another BB after the merge
+            BasicBlock *bb = h->postdomTreeLookup(I.getParent());
+            
+            errs() << "PostDom of " << I.getParent()->getName() 
+            << " is " << bb->getName() << "\n";
+            
+            int pcount = 0;
+            
+            SmallVector<BasicBlock *, 4> Preds;
+            
+            // Count predecessors
+            for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
+                BasicBlock *Pred = *PI;
+                errs() << "pred[" << pcount << "] is " << Pred->getName() << "\n";
+                Preds.push_back(Pred);
+                pcount++;
+                // ...
+            }
+            
+            if (pcount < 3) {
+                return;
+            }
+            
+            // Throw out one of the preds
+            if (Preds.size() > 2) {
+                throwOutPred(Preds);
+            }
+            
+            errs() << "We have " << Preds.size() << " predecessors\n";
+            
+            llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "foo");
 		}
 	};
     
@@ -708,6 +764,18 @@ namespace {
     //        
     //        IRBuilder<> *builder;
     
+    BasicBlock * Hello::findDom(BasicBlock *BB)
+    {
+        Function *f = BB->getParent();
+        DominatorTree &DT = getAnalysis<DominatorTree>(*f);
+        DomTreeNode *Rung = DT.getNode(BB);
+        Rung = Rung->getIDom();
+        //errs() << "Rung is " << Rung << "\n";
+        BasicBlock *bb = Rung->getBlock();
+        //errs() << "BB is " << *bb << "\n";
+        return bb;
+    }
+    
     
     /// Lookup our IDom (from a merge point) so we can find the correct
     /// metadata to tell us where to go (BBs) and what to check (bitfields)
@@ -725,7 +793,7 @@ namespace {
         
         // find the cmp
         for (BasicBlock::iterator i = bb->begin(), e = bb->end(); i != e; ++i) {
-            if (C = dyn_cast<CmpInst>(i)) {
+            if ((C = dyn_cast<CmpInst>(i))) {
                 errs() << *C << "\n";
                 break;
             }
@@ -738,6 +806,18 @@ namespace {
         assert(md && "No metadata found on CmpInst!");
         
         return md;
+    }
+    
+    BasicBlock * Hello::postdomTreeLookup(BasicBlock *BB)
+    {
+        Function *f = BB->getParent();
+        PostDominatorTree &DT = getAnalysis<PostDominatorTree>(*f);
+        DomTreeNode *Rung = DT.getNode(BB);
+        Rung = Rung->getIDom();
+        errs() << "PD Rung is " << Rung << "\n";
+        BasicBlock *bb = Rung->getBlock();
+        errs() << "PD BB is " << *bb << "\n";
+        return bb;
     }
     
     BasicBlock *Hello::reverseBlock(BasicBlock *B)
@@ -1170,6 +1250,7 @@ namespace {
     {
         //Info.addRequired<AliasAnalysis>();
         Info.addRequired<MemoryDependenceAnalysis>();
+        Info.addRequired<PostDominatorTree>();
         Info.addRequiredTransitive<DominatorTree>();
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
@@ -1178,7 +1259,7 @@ namespace {
     
     bool Hello::runOnModule(Module &M) {
         if (Function *rev = M.getFunction(OverFunc)) {
-            Instrumenter ins(M);
+            Instrumenter ins(M, this);
             for (inst_iterator I = inst_begin(rev), E = inst_end(rev); I != E; ++I)
                 ins.visit(&*I);
             
@@ -1298,6 +1379,7 @@ namespace {
              }
              */
             
+            //rev->viewCFG();
             
             return true;
             
