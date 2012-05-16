@@ -1135,7 +1135,7 @@ namespace {
             /// Put exit BB first in function
             BasicBlock *bb = findExitBlock(*rev);
             BasicBlock *newBlock = BasicBlock::Create(getGlobalContext(),
-                                                      "exit_rev", target);
+                                                      "return_rev", target);
             bbmOldToNew[bb] = newBlock;
             bbmNewToOld[newBlock] = bb;
             
