@@ -118,26 +118,7 @@ namespace {
 		/// Change all Values from ``from'' to ``to''
         void updateList(Instruction *from, Instruction *to);		
 		/// Stack dumper
-		void outputList(std::list<Instruction*> l, std::string s);        
-		
-		/**
-		 OK, this function does not currently do this, but it should in the future
-		 do the following:
-		 
-		 Two Code Paths:
-         A, the original block we intend to reverse, and
-         B, the reversed counterpart of A
-		 
-		 The instructionStack contains instructions from A pushed onto the stack
-		 in the order in which they are seen, e.g. they top of the stack has the
-		 last instruction.  What we need to do is:
-		 
-         1. Pop the instruction off the stack
-         2. Figure out its inverse
-         3. Look up the corresponding instruction in B
-         4. Replace 3 with 2
-		 */
-        inline void transmute(/*Instruction *I*/);
+		void outputList(std::list<Instruction*> l, std::string s);
         
 		void eraseBlockContents(BasicBlock *bb);
 		
