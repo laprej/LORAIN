@@ -54,7 +54,7 @@ TEST_CASE("simple/nested if FT", "A simple test if FT")
     
     test_if3();
     REQUIRE(test_if_x3_1 == y1);
-    REQUIRE(test_if_x3_2 != y2);
+    REQUIRE(test_if_x3_2 == y2);
     undo_test_if3();
     REQUIRE(test_if_x3_1 == y1);
     REQUIRE(test_if_x3_2 == y2);
