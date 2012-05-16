@@ -412,6 +412,7 @@ namespace {
 		
 		void visitTerminatorInst(TerminatorInst &I) {
 			errs() << "\n\n\nTERMINATOR INSTRUCTION\n";
+            errs() << "For " << I.getParent()->getName() << "\n";
 			
 			/* if (isa<ReturnInst>(I)) {
              builder.CreateRetVoid();
@@ -436,7 +437,7 @@ namespace {
             
             for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
                 BasicBlock *Pred = *PI;
-                errs() << "pred of " << *bb << ": " << *Pred << "\n";
+                errs() << "pred of " << bb->getName() << ": " << Pred->getName() << "\n";
                 // ...
                 //pred_list.push_back(Pred);
                 
@@ -787,7 +788,7 @@ namespace {
         Rung = Rung->getIDom();
         errs() << "Rung is " << Rung << "\n";
         BasicBlock *bb = Rung->getBlock();
-        errs() << "BB is " << *bb << "\n";
+        errs() << "BB is " << bb->getName() << "\n";
         
         CmpInst *C = 0;
         
@@ -1226,8 +1227,8 @@ namespace {
                     }
                 }
                 
-                errs() << "BASIC BLOCK\n";
-                errs() << *block << "\n";
+                errs() << "BASIC BLOCK: ";
+                errs() << block->getName() << "\n";
             }
             
             /*
