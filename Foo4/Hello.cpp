@@ -176,7 +176,11 @@ namespace {
 				if (BranchInst *B = dyn_cast<BranchInst>(it)) {
 					assert(B->getNumSuccessors() == 2 && "Branch doesn't have two sucessors!");
 					BasicBlock *then = B->getSuccessor(0);
+                    errs() << "B->getSuccessor(0) is " << then->getName() << "\n";
 					BasicBlock *el = B->getSuccessor(1);
+                    errs() << "B->getSuccessor(1) is " << el->getName() << "\n";
+                    B->getParent()->getParent()->viewCFG();
+                    
 					Value *Elts[] = {
 						MDString::get(getGlobalContext(), then->getName()),
 						MDString::get(getGlobalContext(), el->getName()),
@@ -354,7 +358,7 @@ namespace {
             
             errs() << "We have " << Preds.size() << " predecessors\n";
             
-            llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "foo");
+            llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "_diamond");
 		}
 	};
     
@@ -409,6 +413,57 @@ namespace {
             
             return md;
         }
+        
+        /// Starting at start, can we arrive at target?
+        /// We may need to revisit this when loop support is added
+        bool bbDFS(BasicBlock *start, BasicBlock *target, int indent = 0)
+        {
+            if (indent == 0) {
+                errs() << "\nbbDFS(" << start->getName() << ", " << target->getName() << ")\n";
+            }
+            else {
+                errs() << 2 * ' ' << "\nbbDFS(" << start->getName() << ", " << target->getName() << ")\n";
+            }
+            
+            if (start == target) {
+                return true;
+            }
+            
+            for (succ_iterator SI = succ_begin(start), E = succ_end(start); SI != E; ++SI) {
+                BasicBlock *Succ = *SI;
+                errs() << "succ of " << start->getName() << ": " << Succ->getName() << "\n";
+                if (target == Succ) {
+                    return true;
+                }
+                if (true == bbDFS(Succ, target)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        /// bb1 is a basic block which terminates with a branch instruction.
+        /// find the "true" branch and then check if bb2 is a descendant
+        /// We may need to revisit this when loop support is added
+        bool isTrueAncestor(BasicBlock * ancestor, BasicBlock * descendant)
+        {
+            BasicBlock *dom = h->findDom(ancestor);
+            
+            // Now we have to find the BB for "true" in our br instruction
+            if (BranchInst *b = dyn_cast<BranchInst>(dom->getTerminator())) {
+                BasicBlock *then = b->getSuccessor(0);
+                if (bbDFS(then, descendant)) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            }
+            else {
+                assert(0 && "Expecting a BranchInst from dominator!");
+            }
+        }
 		
 		void visitTerminatorInst(TerminatorInst &I) {
 			errs() << "\n\n\nTERMINATOR INSTRUCTION\n";
@@ -433,6 +488,9 @@ namespace {
 			
 			int count = 0;
 			
+            std::vector<BasicBlock *> bbv;
+            
+            // bb is the original basic block to be reversed
 			BasicBlock *bb = I.getParent();
             
             for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
@@ -441,9 +499,12 @@ namespace {
                 // ...
                 //pred_list.push_back(Pred);
                 
+                bbv.push_back(Pred);
+                
                 count++;
             }
 			
+            // foo is the generated "inverse" basic block
 			BasicBlock *foo = builder.GetInsertBlock();
 			
 			errs() << "count is " << count << "\n";
@@ -466,10 +527,10 @@ namespace {
                 
                 //findDiamondBf(I);
                 
-				NamedMDNode *nmd = M.getNamedMetadata("jml.icmp");
-				assert(nmd);
-				errs() << "NMD: " << nmd->getName();// << "\n";
-				errs() << " has " << nmd->getNumOperands() << " operands\n";
+//				NamedMDNode *nmd = M.getNamedMetadata("jml.icmp");
+//				assert(nmd);
+//				errs() << "NMD: " << nmd->getName();// << "\n";
+//				errs() << " has " << nmd->getNumOperands() << " operands\n";
 				//MDNode *md = nmd->getOperand(0);
                 
                 MDNode *md = findDiamondBf(I);
@@ -513,13 +574,23 @@ namespace {
                 Value *lllll = builder.CreateSub(ll, ll);
                 /// Store back the bitfield
                 Value *llllll = builder.CreateStore(lllll, l);
+                
+                if (isTrueAncestor(bb, bbv[0])) {
+                    // Nothing is necessary, our bbv array is in correct order
+                }
+                else {
+                    BasicBlock *temp = bbv[0];
+                    bbv[0] = bbv[1];
+                    bbv[1] = temp;
+                }
 				
 				BasicBlock *thenBB = 0, *elBB = 0;
 				Function *F = foo->getParent();
 				/// Find the "then" block
 				Function::iterator it, E;
 				for (it = F->begin(), E = F->end(); it != E; ++it) {
-					std::string str = then->getString();
+					//std::string str = then->getString();
+                    std::string str = bbv[0]->getName();
 					str += "_rev";
 					errs() << "Comparing " << str << " and " << it->getName();
 					if (str == it->getName()) {
@@ -528,7 +599,8 @@ namespace {
 					}
 					errs() << "\n";
 					
-					std::string str2 = el->getString();
+					//std::string str2 = el->getString();
+                    std::string str2 = bbv[1]->getName();
 					str2 += "_rev";
 					errs() << "Comparing " << str2 << " and " << it->getName();
 					if (str2 == it->getName()) {
@@ -537,6 +609,19 @@ namespace {
 					}
 					errs() << "\n";
 				}
+//                for (it = F->begin(), E = F->end(); it != E; ++it) {
+//                    if (bbv[0] == it) {
+//                        thenBB = it;
+//                        break;
+//                    }
+//                }
+//                for (it = F->begin(), E = F->end(); it != E; ++it) {
+//                    if (bbv[1] == it) {
+//                        elBB = it;
+//                        break;
+//                    }
+//                }
+                
 				
 				assert(thenBB);
 				assert(elBB);
