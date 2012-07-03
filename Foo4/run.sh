@@ -52,9 +52,9 @@ llvm-gcc -emit-llvm $1.c -c -o $1.bc
 
 llvm-gcc -emit-llvm $1.c -S -o $1.ll
 
-echo "opt -break-crit-edges -disable-verify -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc"
+echo "opt -break-crit-edges -loop-simplify -indvars -disable-verify -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc"
 
-opt -break-crit-edges -disable-verify -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc
+opt -break-crit-edges -loop-simplify -indvars -disable-verify -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc
 
 echo "opt completed."
 

@@ -179,7 +179,7 @@ namespace {
                     errs() << "B->getSuccessor(0) is " << then->getName() << "\n";
 					BasicBlock *el = B->getSuccessor(1);
                     errs() << "B->getSuccessor(1) is " << el->getName() << "\n";
-                    B->getParent()->getParent()->viewCFG();
+                    //B->getParent()->getParent()->viewCFG();
                     
 					Value *Elts[] = {
 						MDString::get(getGlobalContext(), then->getName()),
@@ -1172,24 +1172,24 @@ namespace {
         }
     }
     
-    /// Negate a binary operator and all of its deps.
-    /// Use a builder to handle it.
-    void Hello::negateStoreInstruction(StoreInst *b) {
-        std::vector<Value *> bucket;
-        //getUseDef(b, bucket);
-        
-        errs() << "\n\n\nAfter negateStoreInstruction bucket holds:\n";
-        std::vector<Value *>::iterator it = bucket.end(), begin = bucket.begin();
-        --it;
-        
-        int num = 0;
-        
-        std::vector<Value *>::reverse_iterator rit(bucket.end()), re(bucket.begin());
-        for (; rit != re; ++rit) {
-            errs() << num++ << ": " << "(" << b->getParent()->getName() << ") " << **rit << "\n";
-        }
-        
-    }
+//    /// Negate a binary operator and all of its deps.
+//    /// Use a builder to handle it.
+//    void Hello::negateStoreInstruction(StoreInst *b) {
+//        std::vector<Value *> bucket;
+//        //getUseDef(b, bucket);
+//        
+//        errs() << "\n\n\nAfter negateStoreInstruction bucket holds:\n";
+//        std::vector<Value *>::iterator it = bucket.end(), begin = bucket.begin();
+//        --it;
+//        
+//        int num = 0;
+//        
+//        std::vector<Value *>::reverse_iterator rit(bucket.end()), re(bucket.begin());
+//        for (; rit != re; ++rit) {
+//            errs() << num++ << ": " << "(" << b->getParent()->getName() << ") " << **rit << "\n";
+//        }
+//        
+//    }
     
     void Hello::getAnalysisUsage(AnalysisUsage &Info) const
     {
@@ -1197,6 +1197,7 @@ namespace {
         Info.addRequired<MemoryDependenceAnalysis>();
         Info.addRequired<PostDominatorTree>();
         Info.addRequiredTransitive<DominatorTree>();
+        Info.addRequired<LoopInfo>();
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
     
@@ -1239,10 +1240,21 @@ namespace {
             
             DEBUG(errs() << "HERE\n");
             
+            LoopInfo &LI = getAnalysis<LoopInfo>(*rev);
+            std::vector<BasicBlock*> loopBBs;
+            
             for (fi = rev->begin(), fe = rev->end(); fi != fe; ++fi) {
                 /// Create our BasicBlock
                 //BasicBlock *block = BasicBlock::Create(getGlobalContext(),
                 //									   "", target);
+                
+                // If our old block is in a loop, skip for now
+                if (LI.getLoopDepth(fi)) {
+                    errs() << fi->getName() << " is in a loop, bailing out\n";
+                    loopBBs.push_back(fi);
+                    //continue;
+                }
+                
                 BasicBlock *block = bbmOldToNew[fi];
                 
                 IRBuilder<> builder(block);
