@@ -64,10 +64,10 @@ using namespace llvm;
 
 
 namespace {
-    static cl::opt<std::string> OverFunc("rev-func",
+    static cl::opt<std::string> FuncToInstrument("rev-func",
 										 cl::desc("<func to reverse>"));//, llvm::cl::Required);	
 	
-	static cl::opt<std::string> TargetFunc("tgt-func",
+	static cl::opt<std::string> FuncToGenerate("tgt-func",
 										   cl::desc("<func to output>"));//, llvm::cl::Required);
 	
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
@@ -926,7 +926,7 @@ namespace {
                  // Skip the unreachables...
                  continue;
                  } */
-                IRBuilder<> build();
+                //IRBuilder<> build();
                 errs() << "reversing " << *i << " instruction\n";
                 errs() << "It uses: ";
                 for (User::op_iterator u = i->op_begin(), e = i->op_end(); u != e; ++u) {
@@ -954,7 +954,7 @@ namespace {
     
     Function *Hello::createReverseFunction(Module &M)
     {
-        Constant *temp = M.getOrInsertFunction(TargetFunc, 
+        Constant *temp = M.getOrInsertFunction(FuncToGenerate,
                                                Type::getVoidTy(M.getContext()),
                                                (Type *)0);
         
@@ -965,16 +965,16 @@ namespace {
         
         Function *reverse = cast<Function>(temp);
         if (reverse) {
-            DEBUG(errs() << "OK supposedly we inserted " << TargetFunc << "\n");
+            DEBUG(errs() << "OK supposedly we inserted " << FuncToGenerate << "\n");
         }
         else {
-            DEBUG(errs() << "Problem inserting function " << TargetFunc << "\n");
+            DEBUG(errs() << "Problem inserting function " << FuncToGenerate << "\n");
             exit(-1);
         }
         
         ValueToValueMapTy vmap;
         SmallVectorImpl<ReturnInst*> Returns(1);
-        CloneFunctionInto(reverse, M.getFunction(OverFunc), vmap, true, Returns, "_reverse");
+        CloneFunctionInto(reverse, M.getFunction(FuncToInstrument), vmap, true, Returns, "_reverse");
         
         //reverse->viewCFG();
         
@@ -1204,12 +1204,12 @@ namespace {
     //virtual bool
     
     bool Hello::runOnModule(Module &M) {
-        if (Function *rev = M.getFunction(OverFunc)) {
-            Instrumenter ins(M, this);
+        if (Function *rev = M.getFunction(FuncToInstrument)) {
+            Instrumenter instrumenter(M, this);
             for (inst_iterator I = inst_begin(rev), E = inst_end(rev); I != E; ++I)
-                ins.visit(&*I);
+                instrumenter.visit(&*I);
             
-            DEBUG(errs() << "Found " << OverFunc << "\n");
+            DEBUG(errs() << "Found " << FuncToInstrument << "\n");
             
             Function *target = createReverseFunction(M);
             
