@@ -74,6 +74,9 @@ namespace {
 	
 #pragma mark
 #pragma mark Instrumenter
+
+#undef DEBUG_TYPE
+#define DEBUG_TYPE "Instrumenter"
     
 	/// This class will apply the necessary instrumentation on the forward path
 	class Instrumenter : public InstVisitor<Instrumenter>
@@ -125,7 +128,7 @@ namespace {
             
             bff = bff.concat(Twine(bitFieldCount++));
             
-            errs() << "newBitFieldName is returning " << bff << "\n";
+            DEBUG(errs() << "Instrumenter: newBitFieldName is returning " << bff << "\n");
             
             return bff.str();
         }
@@ -176,9 +179,9 @@ namespace {
 				if (BranchInst *B = dyn_cast<BranchInst>(it)) {
 					assert(B->getNumSuccessors() == 2 && "Branch doesn't have two sucessors!");
 					BasicBlock *then = B->getSuccessor(0);
-                    errs() << "B->getSuccessor(0) is " << then->getName() << "\n";
+                    DEBUG(errs() << "Instrumenter: B->getSuccessor(0) is " << then->getName() << "\n");
 					BasicBlock *el = B->getSuccessor(1);
-                    errs() << "B->getSuccessor(1) is " << el->getName() << "\n";
+                    DEBUG(errs() << "Instrumenter: B->getSuccessor(1) is " << el->getName() << "\n");
                     //B->getParent()->getParent()->viewCFG();
                     
 					Value *Elts[] = {
@@ -222,7 +225,7 @@ namespace {
              * it the result of the cmp instruction in the function to be
              * reversed.
              */
-            DEBUG(errs() << "COMPARE INSTRUCTION\n");
+            DEBUG(errs() << "Instrumenter: COMPARE INSTRUCTION\n");
 			
 #if 0
 			{
@@ -300,28 +303,28 @@ namespace {
 			Value *ll = b.CreateLoad(l);
 			markJML(ll);
 			
-			errs() << "ll has type: " << *ll->getType() << "\n";
-			errs() << "I has type: " << *I.getType() << "\n";
+			DEBUG(errs() << "Instrumenter: ll has type: " << *ll->getType() << "\n");
+			DEBUG(errs() << "Instrumenter: I has type: " << *I.getType() << "\n");
 			
 			Value *lll = b.CreateCast(Instruction::Trunc, ll, I.getType());
 			markJML(lll);
 			
-			errs() << "lll has type: " << *lll->getType() << "\n";
+			DEBUG(errs() << "Instrumenter: lll has type: " << *lll->getType() << "\n");
 			
 			Value *v = b.CreateNUWAdd(lll, &I);
 			markJML(v);
 			
-			errs() << "got here...\n";
+			DEBUG(errs() << "Instrumenter: got here...\n");
 			
 			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
 			markJML(llll);
 			
-			errs() << "llll has type: " << *llll->getType() << "\n";
+			DEBUG(errs() << "Instrumenter: llll has type: " << *llll->getType() << "\n");
 			
 			markJML(b.CreateStore(llll, l));
 			
 			
-			errs() << "Here, too!\n";
+			DEBUG(errs() << "Instrumenter: Here, too!\n");
             
             
             
@@ -331,8 +334,8 @@ namespace {
             /// so we'll need to add another BB after the merge
             BasicBlock *bb = h->postdomTreeLookup(I.getParent());
             
-            errs() << "PostDom of " << I.getParent()->getName() 
-            << " is " << bb->getName() << "\n";
+            DEBUG(errs() << "Instrumenter: PostDom of " << I.getParent()->getName()
+                  << " is " << bb->getName() << "\n");
             
             int pcount = 0;
             
@@ -341,7 +344,7 @@ namespace {
             // Count predecessors
             for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
                 BasicBlock *Pred = *PI;
-                errs() << "pred[" << pcount << "] is " << Pred->getName() << "\n";
+                DEBUG(errs() << "Instrumenter: pred[" << pcount << "] is " << Pred->getName() << "\n");
                 Preds.push_back(Pred);
                 pcount++;
                 // ...
@@ -356,7 +359,7 @@ namespace {
                 throwOutPred(Preds);
             }
             
-            errs() << "We have " << Preds.size() << " predecessors\n";
+            DEBUG(errs() << "Instrumenter: We have " << Preds.size() << " predecessors\n");
             
             llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "_diamond");
 		}
