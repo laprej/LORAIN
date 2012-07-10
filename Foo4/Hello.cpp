@@ -1204,9 +1204,9 @@ namespace {
     //virtual bool
     
     bool Hello::runOnModule(Module &M) {
-        if (Function *rev = M.getFunction(FuncToInstrument)) {
+        if (Function *ForwardFunc = M.getFunction(FuncToInstrument)) {
             Instrumenter instrumenter(M, this);
-            for (inst_iterator I = inst_begin(rev), E = inst_end(rev); I != E; ++I)
+            for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
                 instrumenter.visit(&*I);
             
             DEBUG(errs() << "Found " << FuncToInstrument << "\n");
@@ -1219,7 +1219,7 @@ namespace {
             //std::map<BasicBlock*,BasicBlock*> oldToNewRev;
             
             /// Put exit BB first in function
-            BasicBlock *bb = findExitBlock(*rev);
+            BasicBlock *bb = findExitBlock(*ForwardFunc);
             BasicBlock *newBlock = BasicBlock::Create(getGlobalContext(),
                                                       "return_rev", target);
             bbmOldToNew[bb] = newBlock;
@@ -1227,7 +1227,7 @@ namespace {
             
             /// Make analogs to all BBs in function
             Function::iterator fi, fe;
-            for (fi = rev->begin(), fe = rev->end(); fi != fe; ++fi) {
+            for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 if (bb == fi) {
                     continue;
                 }
@@ -1240,10 +1240,10 @@ namespace {
             
             DEBUG(errs() << "HERE\n");
             
-            LoopInfo &LI = getAnalysis<LoopInfo>(*rev);
+            LoopInfo &LI = getAnalysis<LoopInfo>(*ForwardFunc);
             std::vector<BasicBlock*> loopBBs;
             
-            for (fi = rev->begin(), fe = rev->end(); fi != fe; ++fi) {
+            for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 /// Create our BasicBlock
                 //BasicBlock *block = BasicBlock::Create(getGlobalContext(),
                 //									   "", target);
@@ -1288,7 +1288,7 @@ namespace {
                         
                         MemDepResult mdr;
                         
-                        MemoryDependenceAnalysis& mda = getAnalysis<MemoryDependenceAnalysis>(*rev);
+                        MemoryDependenceAnalysis& mda = getAnalysis<MemoryDependenceAnalysis>(*ForwardFunc);
                         
                         DEBUG(errs() << "Got MDR\n");
                         
@@ -1352,14 +1352,14 @@ namespace {
             
             
             // Find the exit block from OverFunc
-            BasicBlock *oldBB = findExitBlock(*rev);
+            BasicBlock *oldBB = findExitBlock(*ForwardFunc);
             //BasicBlock *newEntryBB = BasicBlock::Create(M.getContext(), "r_" + oldBB->getName(), target);
             ValueToValueMapTy VMap;
             BasicBlock *newEntryBB = CloneBasicBlock(oldBB, VMap, "", target);
             bbmNewToOld.insert(std::make_pair(newEntryBB, oldBB));
             
             // Create all the new (empty) BBs
-            for (Function::iterator i = rev->begin(), e = rev->end(); i != e; ++i) {
+            for (Function::iterator i = ForwardFunc->begin(), e = ForwardFunc->end(); i != e; ++i) {
                 BasicBlock *bb = i;
                 if (bb == oldBB) {
                     continue;
