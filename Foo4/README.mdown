@@ -1,0 +1,15 @@
+Automatic Reverse Event Handler Generator
+=========================================
+
+Attempt 3 (Foo4)
+----------------
+This approach has fared well.  Full basic blocks of instructions
+have been reversed as well as **if** statements.  Now we are attempting
+loop constructs.  Natural loops are being targeted as that should bring
+us very high coverage.  Further, finer-grained debugging output is in
+the process of being added.  It can be run like this:
+
+    export DBG="-debug-only=Instrumenter"
+
+Then run the **run.sh** script or use the Makefile.  Available
+**debug-only** options are Instrumenter, Inverter.

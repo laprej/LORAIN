@@ -369,6 +369,9 @@ namespace {
     
 #pragma mark
 #pragma mark Inverter
+
+#undef DEBUG_TYPE
+#define DEBUG_TYPE "Inverter"
     
     class Inverter : public InstVisitor<Inverter>
     {
@@ -387,12 +390,12 @@ namespace {
 		}
 		
 		Value * lookup(Value *k) {
-			errs() << "\n\n\nLOOKUP\n";
+			DEBUG(errs() << "\n\n\nInverter: LOOKUP\n");
 			std::map<Value *, Value *>::iterator it;
 			
 			it = oldToNew.find(k);
 			if (it == oldToNew.end()) {
-				errs() << *k << " not found, outputting map\n";
+				DEBUG(errs() << "Inverter: " << *k << " not found, outputting map\n");
 				outputMap();
 				return k;
 			}
@@ -403,16 +406,23 @@ namespace {
 		void outputMap() {
 			std::map<Value *, Value *>::iterator it, e;
 			
-			errs() << "MAP BEGIN\n";
+			DEBUG(errs() << "Inverter: MAP BEGIN\n");
 			for (it = oldToNew.begin(), e = oldToNew.end(); it != e; ++it) {
-				errs() << "key: " << *it->first << "\n\tdata: " << *it->second << "\n";
+				DEBUG(errs() << "Inverter: key: " << *it->first << "\n\tdata: " << *it->second << "\n");
 			}
-			errs() << "MAP END\n";
+			DEBUG(errs() << "Inverter: MAP END\n");
 		}
         
         MDNode * findDiamondBf(Instruction &I)
         {
+            DEBUG(errs() << "Inverter: findDiamondBf(" << I << "): ");
             MDNode * md = h->domTreeLookup(I);
+            if (md) {
+                DEBUG(errs() << *md << "\n\n");
+            }
+            else {
+                DEBUG(errs() << "NULL\n\n");
+            }
             
             return md;
         }
