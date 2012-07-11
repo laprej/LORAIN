@@ -432,10 +432,10 @@ namespace {
         bool bbDFS(BasicBlock *start, BasicBlock *target, int indent = 0)
         {
             if (indent == 0) {
-                errs() << "\nbbDFS(" << start->getName() << ", " << target->getName() << ")\n";
+                DEBUG(errs() << "\nInverter: bbDFS(" << start->getName() << ", " << target->getName() << ")\n");
             }
             else {
-                errs() << 2 * ' ' << "\nbbDFS(" << start->getName() << ", " << target->getName() << ")\n";
+                DEBUG(errs() << 2 * ' ' << "\nbbDFS(" << start->getName() << ", " << target->getName() << ")\n");
             }
             
             if (start == target) {
@@ -444,7 +444,7 @@ namespace {
             
             for (succ_iterator SI = succ_begin(start), E = succ_end(start); SI != E; ++SI) {
                 BasicBlock *Succ = *SI;
-                errs() << "succ of " << start->getName() << ": " << Succ->getName() << "\n";
+                DEBUG(errs() << "Inverter: succ of " << start->getName() << ": " << Succ->getName() << "\n");
                 if (target == Succ) {
                     return true;
                 }
@@ -479,8 +479,8 @@ namespace {
         }
 		
 		void visitTerminatorInst(TerminatorInst &I) {
-			errs() << "\n\n\nTERMINATOR INSTRUCTION\n";
-            errs() << "For " << I.getParent()->getName() << "\n";
+			DEBUG(errs() << "\n\n\nInverter: TERMINATOR INSTRUCTION\n");
+            DEBUG(errs() << "Inverter: For " << I.getParent()->getName() << "\n");
 			
 			/* if (isa<ReturnInst>(I)) {
              builder.CreateRetVoid();
@@ -508,7 +508,7 @@ namespace {
             
             for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
                 BasicBlock *Pred = *PI;
-                errs() << "pred of " << bb->getName() << ": " << Pred->getName() << "\n";
+                DEBUG(errs() << "Inverter: pred of " << bb->getName() << ": " << Pred->getName() << "\n");
                 // ...
                 //pred_list.push_back(Pred);
                 
@@ -520,7 +520,7 @@ namespace {
             // foo is the generated "inverse" basic block
 			BasicBlock *foo = builder.GetInsertBlock();
 			
-			errs() << "count is " << count << "\n";
+			DEBUG(errs() << "Inverter: count is " << count << "\n");
 			
 			/// If count is zero, it must be the entry block so make it exit
 			if (count == 0) {
@@ -548,7 +548,7 @@ namespace {
                 
                 MDNode *md = findDiamondBf(I);
 				
-                errs() << md->getName() << " has " << md->getNumOperands() << " operands\n";
+                DEBUG(errs() << "Inverter: " << md->getName() << " has " << md->getNumOperands() << " operands\n");
 				MDString *then = dyn_cast_or_null<MDString>(md->getOperand(0));
 				assert(then);
 				MDString *el   = dyn_cast_or_null<MDString>(md->getOperand(1));
@@ -556,7 +556,7 @@ namespace {
                 ConstantInt *bfn = dyn_cast_or_null<ConstantInt>(md->getOperand(2));
                 assert(bfn);
 				/// We have two predecessors; we're going to need an "if"
-				errs() << "WE NEED A BRANCH\n";
+				DEBUG(errs() << "Inverter: WE NEED A BRANCH\n");
 				/// Emit a load of bf, compare, and jump to appropriate BBs
 				
 				/// CURRENTLY WORKING ON THIS
@@ -565,21 +565,21 @@ namespace {
                 Type *newGlobal = IntegerType::get(I.getContext(), 32);
                 Twine bfX("bf");
                 bfX = bfX.concat(Twine(bfn->getZExtValue()));
-                errs() << "bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n";
-                errs() << "and bfX is " << bfX << "\n";
+                DEBUG(errs() << "Inverter: bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n");
+                DEBUG(errs() << "Inverter: and bfX is " << bfX << "\n");
 				Value *l = M.getOrInsertGlobal(bfX.str(), newGlobal);
 				//markJML(l);
 				
 				Value *ll = builder.CreateLoad(l);
 				//markJML(ll);
 				
-				errs() << "ll has type: " << *ll->getType() << "\n";
-				errs() << "I has type: " << *I.getType() << "\n";
+				DEBUG(errs() << "Inverter: ll has type: " << *ll->getType() << "\n");
+				DEBUG(errs() << "Inverter: I has type: " << *I.getType() << "\n");
 				
 				Value *lll = builder.CreateCast(Instruction::Trunc, ll, IntegerType::get(I.getContext(), 1));
 				//markJML(lll);
 				
-				errs() << "lll has type: " << *lll->getType() << "\n";
+				DEBUG(errs() << "Inverter: lll has type: " << *lll->getType() << "\n");
 				
 				Value *llll = builder.CreateICmpEQ(lll, builder.getInt1(true));
                 
@@ -605,22 +605,22 @@ namespace {
 					//std::string str = then->getString();
                     std::string str = bbv[0]->getName();
 					str += "_rev";
-					errs() << "Comparing " << str << " and " << it->getName();
+					DEBUG(errs() << "Inverter: Comparing " << str << " and " << it->getName());
 					if (str == it->getName()) {
-						errs() << " Got it!\n";
+						DEBUG(errs() << " Got it!\n");
 						thenBB = it;
 					}
-					errs() << "\n";
+					DEBUG(errs() << "\n");
 					
 					//std::string str2 = el->getString();
                     std::string str2 = bbv[1]->getName();
 					str2 += "_rev";
-					errs() << "Comparing " << str2 << " and " << it->getName();
+					DEBUG(errs() << "Inverter: Comparing " << str2 << " and " << it->getName());
 					if (str2 == it->getName()) {
-						errs() << " Got it!\n";
+						DEBUG(errs() << " Got it!\n");
 						elBB = it;
 					}
-					errs() << "\n";
+					DEBUG(errs() << "\n");
 				}
 //                for (it = F->begin(), E = F->end(); it != E; ++it) {
 //                    if (bbv[0] == it) {
@@ -676,43 +676,43 @@ namespace {
              
              } */
 			
-			errs() << "I is a " << I << "\n";
+			DEBUG(errs() << "Inverter: I is a " << I << "\n");
 			
 			//assert(0 && "Unhandled terminator instruction!\n");
 		}
 		
 		void visitAllocaInst(AllocaInst &I) {
-			errs() << "\n\n\nALLOCA INSTRUCTION\n";
+			DEBUG(errs() << "\n\n\nInverter: ALLOCA INSTRUCTION\n");
 			
 			Value *alloc = builder.CreateAlloca(I.getType(), 0, I.getName());
-			errs() << "Allocating a " << *I.getType() << "\n";
+			DEBUG(errs() << "Inverter: Allocating a " << *I.getType() << "\n");
 			
 			oldToNew[&I] = alloc;
 		}
         
         void visitStoreInst(StoreInst &I) {
-            errs() << "\n\n\nSTORE INSTRUCTION\n";
+            DEBUG(errs() << "\n\n\nInverter: STORE INSTRUCTION\n");
 			
 			std::vector<Value *> bucket;
 			oldToNew.clear();
             
             Value *storeVal = I.getPointerOperand();
 			if (isa<GlobalValue>(storeVal)) {
-                errs() << storeVal->getName() << " is a global value\n";
+                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
 				currently_reversing = true;
             }
             else {
-                errs() << storeVal->getName() << " is not a global value\n";
+                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is not a global value\n");
 				currently_reversing = false;
             }
 			
 			getUseDef(&I, bucket);
 			
-			errs() << I << "\n";
-			errs() << "Bucket contains:\n";
+			DEBUG(errs() << "Inverter: " << I << "\n");
+			DEBUG(errs() << "Inverter: Bucket contains:\n");
 			for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
 				 it != e; ++it) {
-				errs() << **it << "\n";
+				DEBUG(errs() << "Inverter: " << **it << "\n");
 			}
 			
 			while (bucket.size()) {
@@ -732,16 +732,16 @@ namespace {
 		}
 		
 		void visitLoadInst(LoadInst &I) {
-			errs() << "\n\n\nLOAD INSTRUCTION\n";
+			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION\n");
 			
 			Value *valOfI = &I;
 			
 			Value *loadVal = I.getPointerOperand();
 			if (isa<GlobalValue>(loadVal)) {
-				errs() << loadVal->getName() << " is a global value\n";
+				DEBUG(errs() << "Inverter: " << loadVal->getName() << " is a global value\n");
 			}
 			else {
-				errs() << loadVal->getName() << " is not a global value\n";
+				DEBUG(errs() << "Inverter: " <<loadVal->getName() << " is not a global value\n");
 			}
 			
 			/// Create a new load
@@ -749,7 +749,7 @@ namespace {
 			
 			oldToNew[valOfI] = inst;
 			outputMap();
-			errs() << "\n\n\nLOAD INSTRUCTION END\n";
+			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION END\n");
 		}
 		
 		void visitBinaryOperator(BinaryOperator &I) {
