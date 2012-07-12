@@ -1331,11 +1331,7 @@ namespace {
                     inv.visitStoreInst(*cur);
                 }
                 
-                for (BasicBlock::iterator j = fi->begin(), k = fi->end(); j != k; ++j) {
-                    if (TerminatorInst *t = dyn_cast<TerminatorInst>(j)) {
-                        inv.visitTerminatorInst(*t);
-                    }
-                }
+                inv.visitTerminatorInst(*fi->getTerminator());
                 
                 errs() << "BASIC BLOCK: ";
                 errs() << block->getName() << "\n";
