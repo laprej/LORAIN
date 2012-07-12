@@ -1218,6 +1218,9 @@ namespace {
     
     bool Hello::runOnModule(Module &M) {
         if (Function *ForwardFunc = M.getFunction(FuncToInstrument)) {
+            ////////////////////////////////////////
+            /// Instrument the forward event handler
+            ////////////////////////////////////////
             Instrumenter instrumenter(M, this);
             for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
                 instrumenter.visit(&*I);
