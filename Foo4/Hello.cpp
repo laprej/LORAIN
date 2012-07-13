@@ -194,6 +194,12 @@ namespace {
 					NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.icmp");
 					NMD->addOperand(Node);
 					I->setMetadata("jml.icmp", Node);
+                    
+                    if (LoopInfo *LI = h->getLoopInfo(*I->getParent()->getParent())) {
+                        if (LI->isLoopHeader(I->getParent())) {
+                            errs() << "LOOP HEADER\n\n";
+                        }
+                    }
 				}
 				else {
 					assert(isa<BranchInst>(it) && "CmpInst not followed by BranchInst!");
@@ -862,6 +868,13 @@ namespace {
     //        std::map<const Value *, Value *> duals;
     //        
     //        IRBuilder<> *builder;
+    
+    LoopInfo * Hello::getLoopInfo(Function &f)
+    {
+        LoopInfo &LI = getAnalysis<LoopInfo>(f);
+        
+        return &LI;
+    }
     
     BasicBlock * Hello::findDom(BasicBlock *BB)
     {

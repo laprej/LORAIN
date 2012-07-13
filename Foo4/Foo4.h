@@ -92,6 +92,8 @@ namespace {
         
         IRBuilder<> *builder;
         
+        LoopInfo * getLoopInfo(Function &f);
+        
         BasicBlock * findDom(BasicBlock *bb);
         
         MDNode * domTreeLookup(Instruction &I);
