@@ -1221,6 +1221,9 @@ namespace {
             ////////////////////////////////////////
             /// Instrument the forward event handler
             ////////////////////////////////////////
+            
+            errs() << "Instrumentation phase beginning...\n\n";
+            
             Instrumenter instrumenter(M, this);
             for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
                 instrumenter.visit(&*I);
@@ -1258,6 +1261,8 @@ namespace {
             
             LoopInfo &LI = getAnalysis<LoopInfo>(*ForwardFunc);
             std::vector<BasicBlock*> loopBBs;
+            
+            errs() << "Piece-wise (BB-based) inversion phase beginning...\n\n";
             
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 /// Create our BasicBlock
@@ -1336,8 +1341,8 @@ namespace {
                 
                 inv.visitTerminatorInst(*fi->getTerminator());
                 
-                errs() << "BASIC BLOCK: ";
-                errs() << block->getName() << "\n";
+                DEBUG(errs() << "BASIC BLOCK: ");
+                DEBUG(errs() << block->getName() << "\n");
             }
             
             /*
