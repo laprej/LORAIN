@@ -194,12 +194,6 @@ namespace {
 					NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.icmp");
 					NMD->addOperand(Node);
 					I->setMetadata("jml.icmp", Node);
-                    
-                    if (LoopInfo *LI = h->getLoopInfo(*I->getParent()->getParent())) {
-                        if (LI->isLoopHeader(I->getParent())) {
-                            errs() << "LOOP HEADER\n\n";
-                        }
-                    }
 				}
 				else {
 					assert(isa<BranchInst>(it) && "CmpInst not followed by BranchInst!");
@@ -223,6 +217,82 @@ namespace {
                 Preds.erase(&Preds[0]);
                 return;
             }
+        }
+        
+        void insertCounter(BasicBlock *bb)
+        {
+            // Load
+            // Increment
+            // Store
+            Instruction *I(bb->begin());
+            markJML(I);
+			
+			//BasicBlock::iterator it(I);
+			//++it;
+			IRBuilder<> b(bb);
+            b.SetInsertPoint(I);
+			
+			/// Manually emit the load, add, store for this
+			/// Don't forget to tag all this JML!
+			//const Type *newGlobal = IntegerType::get(I.getContext(), 32);
+			//Value *l = M.getOrInsertGlobal("bf", newGlobal);
+            
+            StringRef bf = newBitFieldName("ctr");
+			
+			Value *l = insertBitField(bf);
+			markJML(l);
+			
+			Value *ll = b.CreateLoad(l);
+			markJML(ll);
+			
+			DEBUG(errs() << "Instrumenter: ll has type: " << *ll->getType() << "\n");
+			DEBUG(errs() << "Instrumenter: I has type: " << *I->getType() << "\n");
+			
+			//Value *lll = b.CreateCast(Instruction::Trunc, ll, I->getType());
+			//markJML(lll);
+			
+			//DEBUG(errs() << "Instrumenter: lll has type: " << *lll->getType() << "\n");
+			
+            Value *one = b.getInt32(1);
+            
+			Value *v = b.CreateNUWAdd(ll, one);
+			markJML(v);
+			
+			DEBUG(errs() << "Instrumenter: got here...\n");
+			
+			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
+			markJML(llll);
+			
+			DEBUG(errs() << "Instrumenter: llll has type: " << *llll->getType() << "\n");
+			
+			markJML(b.CreateStore(llll, l));
+
+        }
+        
+        void handleLoop(CmpInst &I)
+        {
+            Function *ForwardFunc = M.getFunction(FuncToInstrument);
+            LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
+            BasicBlock *BB = I.getParent();
+            assert(LI->getLoopDepth(BB));
+            /// What we need to do is add a counter to the body BB of this loop
+            /// We don't need a bitfield, it's all controlled by the counter
+            /// From the loop header, we can get to the first block in the loop
+            if (LI->isLoopHeader(I.getParent())) {
+                errs() << "LOOP HEADER\n\n";
+                /// Loop through succ and find the one in the loop
+                /// We are assuming one of the successors is outside any loops
+                for (succ_iterator SI = succ_begin(BB), E = succ_end(BB);
+                     SI != E; ++SI) {
+                    BasicBlock *bb = *SI;
+                    if (LI->getLoopDepth(bb)) {
+                        /// Do something here
+                        insertCounter(bb);
+                        break;
+                    }
+                }
+            }
+            
         }
 		
 		void visitCmpInst(CmpInst &I) {
@@ -286,6 +356,14 @@ namespace {
 				pi->getParent()->getInstList().insertAfter(pi, newInst);
 			}
 #endif
+            Function *ForwardFunc = M.getFunction(FuncToInstrument);
+            LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
+            /// Handle CmpInsts inside of loops a little differently...
+            if (LI->getLoopDepth(I.getParent())) {
+                handleLoop(I);
+                // early exit from this function
+                return;
+            }
 			
             // We are creating a dangerous coupling here between our metadata
             // necessary for marking a cmp instruction and our bitfield count.
@@ -911,6 +989,8 @@ namespace {
             }
         }
         
+        I.getParent()->getParent()->dump();
+        
         assert(C && "CmpInst not found!");
         
         MDNode *md = C->getMetadata("jml.icmp");
@@ -1270,7 +1350,10 @@ namespace {
                 bbmNewToOld[block] = fi;
             }
             
-            DEBUG(errs() << "HERE\n");
+            ////////////////////////////////////////
+            /// Handle Loops here...
+            ////////////////////////////////////////
+            /// TBD: loops
             
             LoopInfo &LI = getAnalysis<LoopInfo>(*ForwardFunc);
             std::vector<BasicBlock*> loopBBs;
@@ -1286,7 +1369,7 @@ namespace {
                 if (LI.getLoopDepth(fi)) {
                     errs() << fi->getName() << " is in a loop, bailing out\n";
                     loopBBs.push_back(fi);
-                    //continue;
+                    continue;
                 }
                 
                 BasicBlock *block = bbmOldToNew[fi];
