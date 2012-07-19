@@ -111,8 +111,6 @@ namespace {
          */
         BasicBlock *findExitBlock(Function &F);
         
-        void reverseBlockInto(BasicBlock *oldBB, BasicBlock *newBB);
-        
         /// Change all Values from ``from'' to ``to''
         void updateMap(Value *from, Value *to);		
 		void outputMap();		
