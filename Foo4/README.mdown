@@ -12,4 +12,4 @@ the process of being added.  It can be run like this:
     export DBG="-debug-only=Instrumenter"
 
 Then run the **run.sh** script or use the Makefile.  Available
-**debug-only** options are Instrumenter, Inverter.
+**debug-only** options are **Instrumenter**, **Inverter**.
