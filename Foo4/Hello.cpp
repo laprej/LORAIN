@@ -71,6 +71,23 @@ namespace {
 										   cl::desc("<func to output>"));//, llvm::cl::Required);
 	
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
+    
+    BasicBlock * findNewBBByName(StringRef sr)
+    {
+        std::map<BasicBlock *, BasicBlock *>::iterator it, e;
+        
+        errs() << "findNewBBByName starting search for " << sr << "\n";
+        
+        for (it = bbmOldToNew.begin(), e = bbmOldToNew.end(); it != e; ++it) {
+            errs() << "comparing with " << it->first->getName() << "\n";
+            if (it->first->getName() == sr)
+                return it->second;
+        }
+        
+        errs() << "didn't find it\n";
+        
+        return 0;
+    }
 	
 #pragma mark
 #pragma mark Instrumenter
@@ -85,10 +102,12 @@ namespace {
         Hello *h;
         
         unsigned bitFieldCount;// = 0;
+        unsigned loopCount;
         
 	public:
 		Instrumenter(Module &mod, Hello *H): M(mod), h(H) {
             bitFieldCount = 0;
+            loopCount = 0;
 		}
 		
 		/* /// GetOrCreateAnchor - Look up an anchor for the specified tag and name.  If it
@@ -219,7 +238,7 @@ namespace {
             }
         }
         
-        void insertCounter(BasicBlock *bb)
+        StringRef insertCounter(BasicBlock *bb)
         {
             // Load
             // Increment
@@ -266,7 +285,39 @@ namespace {
 			DEBUG(errs() << "Instrumenter: llll has type: " << *llll->getType() << "\n");
 			
 			markJML(b.CreateStore(llll, l));
-
+            
+            return bf;
+        }
+        
+        void instrumentLoopHeader(BasicBlock *BB, StringRef &sr)
+        {
+            Function *ForwardFunc = M.getFunction(FuncToInstrument);
+            LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
+            assert(LI->getLoopDepth(BB));
+            
+            BasicBlock *parent = LI->getLoopFor(BB)->getLoopPreheader();
+            BasicBlock *body;
+            
+            if (BranchInst *BI = dyn_cast_or_null<BranchInst>(BB)) {
+                body = BI->getSuccessor(0);
+            }
+            
+            Value *Elts[] = {
+                /// parent
+                MDString::get(getGlobalContext(), parent->getName()),
+                /// loop body
+                MDString::get(getGlobalContext(), body->getName()),
+                //MDString::get(getGlobalContext(), then->getName()),
+                //MDString::get(getGlobalContext(), el->getName()),
+                MDString::get(getGlobalContext(), sr)
+                //ConstantInt::get(Type::getInt32Ty(getGlobalContext()), sr)
+                //                        MDString::get(getGlobalContext(), StringRef(bitFieldCount))
+            };
+            MDNode *Node = MDNode::get(getGlobalContext(), Elts);
+            NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.icmp.loop");
+            NMD->addOperand(Node);
+            BB->getTerminator()->setMetadata("jml.icmp.loop", Node);
+            //I->setMetadata("jml.icmp", Node);
         }
         
         void handleLoop(CmpInst &I)
@@ -275,11 +326,17 @@ namespace {
             LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
             BasicBlock *BB = I.getParent();
             assert(LI->getLoopDepth(BB));
-            /// What we need to do is add a counter to the body BB of this loop
-            /// We don't need a bitfield, it's all controlled by the counter
+            /// What we need to do is add a counter to the LATCH of this loop
+            /// We don't need a bitfield, it's all controlled by the counter.
             /// From the loop header, we can get to the first block in the loop
-            if (LI->isLoopHeader(I.getParent())) {
+            // TODO: Make this grab the latch
+            if (LI->isLoopHeader(BB)) {
                 errs() << "LOOP HEADER\n\n";
+                
+                //instrumentLoopHeader(BB);
+                
+                StringRef sr;
+                
                 /// Loop through succ and find the one in the loop
                 /// We are assuming one of the successors is outside any loops
                 for (succ_iterator SI = succ_begin(BB), E = succ_end(BB);
@@ -287,12 +344,15 @@ namespace {
                     BasicBlock *bb = *SI;
                     if (LI->getLoopDepth(bb)) {
                         /// Do something here
-                        insertCounter(bb);
+                        sr = insertCounter(bb);
                         break;
                     }
                 }
+                
+                assert(!sr.empty());
+                /// Do some bookkeeping here about this loop in metadata
+                instrumentLoopHeader(BB, sr);
             }
-            
         }
 		
 		void visitCmpInst(CmpInst &I) {
@@ -620,7 +680,10 @@ namespace {
 				return;
 			}
 			
-			if (count == 2) {
+            Function *f = bb->getParent();
+            LoopInfo *LI = h->getLoopInfo(*f);
+            /// Standard ``if'' statement
+			if (count == 2 && !(LI->getLoopDepth(bb))) {
                 
                 //findDiamondBf(I);
                 
@@ -745,24 +808,61 @@ namespace {
                  
                  exit(-1);
                  */
+                return;
 				
 			}
-			/* if (BranchInst *b = dyn_cast<BranchInst>(&I)) {
-             if (b->isUnconditional()) {
-             BasicBlock *oldSucc = b->getSuccessor(0);
-             BasicBlock *newSucc = static_cast<BasicBlock*>(oldToNew[oldSucc]);
-             builder.CreateBr(newSucc);
-             return;
-             }
-             else {
-             assert(0 && "Conditional branches not yet supported!\n");
-             }
-             
-             } */
+            
+            /// Standard loop construct
+            if (count == 2 && LI->getLoopDepth(bb)) {
+                /// 1. Get the loop header
+                BasicBlock *header = LI->getLoopFor(bb)->getHeader();
+                assert(header == I.getParent());
+                /// 2. Find the reverse analog to 1
+                BasicBlock *analogHeader = bbmOldToNew[header];
+                /// 3. Insert instructions to load and decrement the ctr var.
+                MDNode *md = header->getTerminator()->getMetadata("jml.icmp.loop");
+                assert(md && "Loop metadata not found!");
+                MDString *parent = dyn_cast_or_null<MDString>(md->getOperand(0));
+                errs() << parent->getString() << "\n";
+                MDString *body = dyn_cast_or_null<MDString>(md->getOperand(1));
+                errs() << body->getString() << "\n";
+                MDString *ctrNum = dyn_cast_or_null<MDString>(md->getOperand(2));
+                errs() << "ctrNum is " << *ctrNum << "\n";
+                errs() << "LOOP HEADER\n\n";
+                header->dump();
+                errs() << "\nANALOG HEADER\n\n";
+                analogHeader->dump();
+                errs() << "\n";
+                
+                Type *newGlobal = IntegerType::get(I.getContext(), 32);
+                //Twine bfX("bf");
+                //bfX = bfX.concat(Twine(bfn->getZExtValue()));
+                //DEBUG(errs() << "Inverter: bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n");
+                //DEBUG(errs() << "Inverter: and bfX is " << bfX << "\n");
+				Value *l = M.getOrInsertGlobal(ctrNum->getString(), newGlobal);
+                
+                Value *ll = builder.CreateLoad(l);
+                
+                Value *lll = builder.CreateSub(ll, builder.getInt32(1));
+                
+                Value *llll = builder.CreateStore(lll, l);
+                
+                Value *lllll = builder.CreateICmpSLT(lll, builder.getInt32(0));
+                
+                /// 4. Depending on 3, loop or exit loop
+                /// WATCH RIGHT HERE I'M GOING TO CHEAT
+                
+                builder.CreateCondBr(lllll,
+                                     findNewBBByName(parent->getString()),
+                                     findNewBBByName(body->getString()));
+                
+//                BasicBlock *pred = *pred_begin(bb);
+//                BasicBlock *newSucc = bbmOldToNew[pred];
+//                builder.CreateBr(newSucc);
+                return;
+            }
 			
-			DEBUG(errs() << "Inverter: I is a " << I << "\n");
-			
-			//assert(0 && "Unhandled terminator instruction!\n");
+			assert(0 && "Unhandled terminator instruction!\n");
 		}
 		
 		void visitAllocaInst(AllocaInst &I) {
@@ -1125,11 +1225,6 @@ namespace {
                 bbmNewToOld[block] = fi;
             }
             
-            ////////////////////////////////////////
-            /// Handle Loops here...
-            ////////////////////////////////////////
-            /// TBD: loops
-            
             LoopInfo &LI = getAnalysis<LoopInfo>(*ForwardFunc);
             std::vector<BasicBlock*> loopBBs;
             
@@ -1144,7 +1239,7 @@ namespace {
                 if (LI.getLoopDepth(fi)) {
                     errs() << fi->getName() << " is in a loop, bailing out\n";
                     loopBBs.push_back(fi);
-                    continue;
+                    //continue;
                 }
                 
                 BasicBlock *block = bbmOldToNew[fi];
@@ -1215,6 +1310,15 @@ namespace {
                 DEBUG(errs() << "BASIC BLOCK: ");
                 DEBUG(errs() << block->getName() << "\n");
             }
+            
+            ////////////////////////////////////////
+            /// Handle Loops here...
+            ////////////////////////////////////////
+            typedef std::vector<BasicBlock*>::iterator vbi;
+            for (vbi bi = loopBBs.begin(),be = loopBBs.end(); bi != be; ++bi) {
+                
+            }
+            
             
             /*
              for (inst_iterator I = inst_begin(rev), E = inst_end(rev); I != E; ++I) {
