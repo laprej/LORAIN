@@ -867,8 +867,8 @@ namespace {
 		
 		void visitAllocaInst(AllocaInst &I) {
 			DEBUG(errs() << "\n\n\nInverter: ALLOCA INSTRUCTION\n");
-			
-			Value *alloc = builder.CreateAlloca(I.getType(), 0, I.getName());
+
+			Value *alloc = builder.CreateAlloca(I.getAllocatedType(), 0, I.getName());
 			DEBUG(errs() << "Inverter: Allocating a " << *I.getType() << "\n");
 			
 			oldToNew[&I] = alloc;
@@ -878,7 +878,7 @@ namespace {
             DEBUG(errs() << "\n\n\nInverter: STORE INSTRUCTION\n");
 			
 			std::vector<Value *> bucket;
-			oldToNew.clear();
+			//oldToNew.clear();
             
             Value *storeVal = I.getPointerOperand();
 			if (isa<GlobalValue>(storeVal)) {
@@ -888,6 +888,12 @@ namespace {
             else {
                 DEBUG(errs() << "Inverter: " << storeVal->getName() << " is not a global value\n");
 				currently_reversing = false;
+                storeVal = lookup(storeVal);
+            }
+
+            if (Constant *C = dyn_cast_or_null<Constant>(I.getValueOperand())) {
+                errs() << "FOO!\n";
+                lastVal = C;
             }
 			
 			getUseDef(&I, bucket);
