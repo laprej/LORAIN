@@ -660,6 +660,8 @@ namespace {
                 
                 count++;
             }
+            
+            assert(count < 3 && "Basic Blocks must have < 3 predecessors!\n");
 			
             // foo is the generated "inverse" basic block
 			BasicBlock *foo = builder.GetInsertBlock();
