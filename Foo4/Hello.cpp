@@ -298,7 +298,7 @@ namespace {
             BasicBlock *parent = LI->getLoopFor(BB)->getLoopPreheader();
             BasicBlock *body;
             
-            if (BranchInst *BI = dyn_cast_or_null<BranchInst>(BB)) {
+            if (BranchInst *BI = dyn_cast<BranchInst>(BB)) {
                 body = BI->getSuccessor(0);
             }
             
@@ -698,11 +698,11 @@ namespace {
                 MDNode *md = findDiamondBf(I);
 				
                 DEBUG(errs() << "Inverter: " << md->getName() << " has " << md->getNumOperands() << " operands\n");
-				MDString *then = dyn_cast_or_null<MDString>(md->getOperand(0));
+				MDString *then = dyn_cast<MDString>(md->getOperand(0));
 				assert(then);
-				MDString *el   = dyn_cast_or_null<MDString>(md->getOperand(1));
+				MDString *el   = dyn_cast<MDString>(md->getOperand(1));
 				assert(el);
-                ConstantInt *bfn = dyn_cast_or_null<ConstantInt>(md->getOperand(2));
+                ConstantInt *bfn = dyn_cast<ConstantInt>(md->getOperand(2));
                 assert(bfn);
 				/// We have two predecessors; we're going to need an "if"
 				DEBUG(errs() << "Inverter: WE NEED A BRANCH\n");
@@ -824,11 +824,11 @@ namespace {
                 /// 3. Insert instructions to load and decrement the ctr var.
                 MDNode *md = header->getTerminator()->getMetadata("jml.icmp.loop");
                 assert(md && "Loop metadata not found!");
-                MDString *parent = dyn_cast_or_null<MDString>(md->getOperand(0));
+                MDString *parent = dyn_cast<MDString>(md->getOperand(0));
                 errs() << parent->getString() << "\n";
-                MDString *body = dyn_cast_or_null<MDString>(md->getOperand(1));
+                MDString *body = dyn_cast<MDString>(md->getOperand(1));
                 errs() << body->getString() << "\n";
-                MDString *ctrNum = dyn_cast_or_null<MDString>(md->getOperand(2));
+                MDString *ctrNum = dyn_cast<MDString>(md->getOperand(2));
                 errs() << "ctrNum is " << *ctrNum << "\n";
                 errs() << "LOOP HEADER\n\n";
                 header->dump();
@@ -893,7 +893,7 @@ namespace {
                 storeVal = lookup(storeVal);
             }
 
-            if (Constant *C = dyn_cast_or_null<Constant>(I.getValueOperand())) {
+            if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
                 errs() << "FOO!\n";
                 lastVal = C;
             }
