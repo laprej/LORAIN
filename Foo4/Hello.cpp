@@ -74,6 +74,8 @@ namespace {
     
     BasicBlock * findNewBBByName(StringRef sr)
     {
+        assert(!sr.empty() && "Looking for empty BB name!");
+        
         std::map<BasicBlock *, BasicBlock *>::iterator it, e;
         
         errs() << "findNewBBByName starting search for " << sr << "\n";
@@ -296,12 +298,14 @@ namespace {
             assert(LI->getLoopDepth(BB));
             
             BasicBlock *parent = LI->getLoopFor(BB)->getLoopPreheader();
-            BasicBlock *body;
+            BasicBlock *body = 0;
             
-            if (BranchInst *BI = dyn_cast<BranchInst>(BB)) {
+            if (BranchInst *BI = dyn_cast<BranchInst>(BB->getTerminator())) {
                 body = BI->getSuccessor(0);
             }
             
+            assert(body && "Body not set!");
+
             Value *Elts[] = {
                 /// parent
                 MDString::get(getGlobalContext(), parent->getName()),
