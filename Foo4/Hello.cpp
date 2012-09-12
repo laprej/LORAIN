@@ -264,7 +264,7 @@ namespace {
 			markJML(l);
 			
 			Value *ll = b.CreateLoad(l);
-			markJML(ll);
+			//markJML(ll);
 			
 			DEBUG(errs() << "Instrumenter: ll has type: " << *ll->getType() << "\n");
 			DEBUG(errs() << "Instrumenter: I has type: " << *I->getType() << "\n");
@@ -277,16 +277,17 @@ namespace {
             Value *one = b.getInt32(1);
             
 			Value *v = b.CreateNUWAdd(ll, one);
-			markJML(v);
+			//markJML(v);
 			
 			DEBUG(errs() << "Instrumenter: got here...\n");
 			
 			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
-			markJML(llll);
+			//markJML(llll);
 			
 			DEBUG(errs() << "Instrumenter: llll has type: " << *llll->getType() << "\n");
 			
-			markJML(b.CreateStore(llll, l));
+			Value *lllll = b.CreateStore(llll, l);
+            //markJML(lllll);
             
             return bf;
         }
@@ -837,18 +838,18 @@ namespace {
                 
                 Value *ll = builder.CreateLoad(l);
                 
-                Value *lll = builder.CreateSub(ll, builder.getInt32(1));
+                //Value *lll = builder.CreateSub(ll, builder.getInt32(1));
                 
-                Value *llll = builder.CreateStore(lll, l);
+                //Value *llll = builder.CreateStore(lll, l);
                 
-                Value *lllll = builder.CreateICmpSLT(lll, builder.getInt32(0));
+                Value *lllll = builder.CreateICmpSGT(ll, builder.getInt32(0));
                 
                 /// 4. Depending on 3, loop or exit loop
                 /// WATCH RIGHT HERE I'M GOING TO CHEAT
                 
                 builder.CreateCondBr(lllll,
-                                     findNewBBByName(parent->getString()),
-                                     findNewBBByName(body->getString()));
+                                     findNewBBByName(body->getString()),
+                                     findNewBBByName(parent->getString()));
                 
 //                BasicBlock *pred = *pred_begin(bb);
 //                BasicBlock *newSucc = bbmOldToNew[pred];
