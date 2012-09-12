@@ -333,25 +333,13 @@ namespace {
             /// What we need to do is add a counter to the LATCH of this loop
             /// We don't need a bitfield, it's all controlled by the counter.
             /// From the loop header, we can get to the first block in the loop
-            // TODO: Make this grab the latch
             if (LI->isLoopHeader(BB)) {
                 errs() << "LOOP HEADER\n\n";
                 
-                //instrumentLoopHeader(BB);
-                
                 StringRef sr;
                 
-                /// Loop through succ and find the one in the loop
-                /// We are assuming one of the successors is outside any loops
-                for (succ_iterator SI = succ_begin(BB), E = succ_end(BB);
-                     SI != E; ++SI) {
-                    BasicBlock *bb = *SI;
-                    if (LI->getLoopDepth(bb)) {
-                        /// Do something here
-                        sr = insertCounter(bb);
-                        break;
-                    }
-                }
+                BasicBlock *latch = LI->getLoopFor(BB)->getLoopLatch();
+                sr = insertCounter(latch);
                 
                 assert(!sr.empty());
                 /// Do some bookkeeping here about this loop in metadata
