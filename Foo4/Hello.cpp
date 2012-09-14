@@ -1203,9 +1203,6 @@ namespace {
             
             target->deleteBody();
             
-            //std::map<BasicBlock*,BasicBlock*> oldToNew;
-            //std::map<BasicBlock*,BasicBlock*> oldToNewRev;
-            
             /// Put exit BB first in function
             BasicBlock *bb = findExitBlock(*ForwardFunc);
             BasicBlock *newBlock = BasicBlock::Create(getGlobalContext(),
@@ -1232,10 +1229,6 @@ namespace {
             errs() << "Piece-wise (BB-based) inversion phase beginning...\n\n";
             
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
-                /// Create our BasicBlock
-                //BasicBlock *block = BasicBlock::Create(getGlobalContext(),
-                //									   "", target);
-                
                 // If our old block is in a loop, skip for now
                 if (LI.getLoopDepth(fi)) {
                     errs() << fi->getName() << " is in a loop, bailing out\n";
