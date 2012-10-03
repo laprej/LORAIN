@@ -6,6 +6,6 @@ void undo_test_array(void);
 void test_arry(void)
 {
     for (i = 0; i < 10; i++) {
-        test_array_x[i] = i;
+        test_array_x[i] = i + 1;
     }
 }
