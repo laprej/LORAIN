@@ -1009,28 +1009,6 @@ namespace {
 #pragma mark
 #pragma mark Hello
     
-    //    // Hello - The first implementation, without getAnalysisUsage.
-    //    class Hello : public ModulePass {
-    //    public:
-    //        static char ID; // Pass identification, replacement for typeid
-    //        Hello() : ModulePass(ID) {
-    //            builder = 0;
-    //        }
-    //        
-    //        /// Our Inverter class
-    //        Inverter *inv;
-    //        
-    //        std::list<Instruction*> instructionStack;
-    //        std::list<Instruction*> reverseInstructionStack;
-    //		
-    //		/// BBM = BasicBlock Map
-    //        std::map<BasicBlock *, BasicBlock *> bbmNewToOld;
-    //        //std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
-    //        
-    //        std::map<const Value *, Value *> duals;
-    //        
-    //        IRBuilder<> *builder;
-    
     LoopInfo * Hello::getLoopInfo(Function &f)
     {
         LoopInfo &LI = getAnalysis<LoopInfo>(f);
