@@ -619,23 +619,6 @@ namespace {
 			DEBUG(errs() << "\n\n\nInverter: TERMINATOR INSTRUCTION\n");
             DEBUG(errs() << "Inverter: For " << I.getParent()->getName() << "\n");
 			
-			/* if (isa<ReturnInst>(I)) {
-             builder.CreateRetVoid();
-             }
-             if (isa<BranchInst>(I)) {
-             //builder.CreateBr();
-             // OK so here we're using a hack that will not work when there are more than
-             // two basic blocks.  Find the function the builder is a part of.  Get the
-             // list of BBs.  Whichever one is not the current block must be the target
-             BasicBlock *bb = builder.GetInsertBlock();
-             Function *f = bb->getParent();
-             for (Function::iterator it = f->begin(), e = f->end(); it != e; ++it) {
-             if (&*it != bb) {
-             builder.CreateBr(it);
-             }
-             }
-             } */
-			
 			int count = 0;
 			
             std::vector<BasicBlock *> bbv;
