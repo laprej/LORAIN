@@ -527,14 +527,18 @@ namespace {
 		}
 		
 		Value * lookup(Value *k) {
+            if (isa<Constant>(k)) {
+                return k;
+            }
 			DEBUG(errs() << "\n\n\nInverter: LOOKUP\n");
+            DEBUG(k->dump());
 			std::map<Value *, Value *>::iterator it;
 			
 			it = oldToNew.find(k);
 			if (it == oldToNew.end()) {
 				DEBUG(errs() << "Inverter: " << *k << " not found, outputting map\n");
 				outputMap();
-				return k;
+				return 0;
 			}
 			
 			return it->second;
@@ -614,7 +618,78 @@ namespace {
                 assert(0 && "Expecting a BranchInst from dominator!");
             }
         }
+        
+        void visitSExtInst(SExtInst &I)
+        {
+            errs() << "Inverter: SExtInst\n";
+            
+            Value *v = builder.CreateSExt(lookup(I.getOperand(0)), I.getDestTy());
+            
+            oldToNew[&I] = v;
+        }
 		
+        void visitGetElementPtrInst(GetElementPtrInst &I)
+        {
+            errs() << "Inverter: GetElementPtrInst\n";
+
+			std::vector<Value *> bucket;
+			//oldToNew.clear();
+
+            Value *storeVal = I.getPointerOperand();
+			if (isa<GlobalValue>(storeVal)) {
+                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
+				currently_reversing = true;
+            }
+            else {
+                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is not a global value\n");
+				currently_reversing = false;
+                storeVal = lookup(storeVal);
+            }
+
+			getUseDef(&I, bucket);
+            
+			DEBUG(errs() << "Inverter: " << I << "\n");
+			DEBUG(errs() << "Inverter: Bucket contains:\n");
+			for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
+				 it != e; ++it) {
+				DEBUG(errs() << "Inverter: " << **it << "\n");
+			}
+
+			while (bucket.size()) {
+				Value *v = bucket.back();
+				bucket.pop_back();
+
+                if (lookup(v) != v) {
+                    continue;
+                }
+                
+				if (Instruction *i = dyn_cast<Instruction>(v)) {
+					visit(i);
+				}
+			}
+            
+            // Pass arguments to I into our new GEP instruction
+            std::vector<Value *> arr;
+            arr.push_back(I.getOperand(1));
+            arr.push_back(lookup(I.getOperand(2)));
+            lastVal = builder.CreateGEP(I.getOperand(0), arr);
+            
+            oldToNew[&I] = lastVal;
+            
+            return;
+            
+            lastVal = builder.getInt64(0);
+
+			assert(lastVal && "lastVal not set!");
+
+			//builder.CreateStore(lastVal, storeVal);
+            lastVal = builder.CreateGEP(storeVal, lastVal);
+            
+            oldToNew[&I] = lastVal;
+
+			lastVal = 0;
+        }
+        
 		void visitTerminatorInst(TerminatorInst &I) {
 			DEBUG(errs() << "\n\n\nInverter: TERMINATOR INSTRUCTION\n");
             DEBUG(errs() << "Inverter: For " << I.getParent()->getName() << "\n");
@@ -858,23 +933,7 @@ namespace {
 			std::vector<Value *> bucket;
 			//oldToNew.clear();
             
-            Value *storeVal = I.getPointerOperand();
-			if (isa<GlobalValue>(storeVal)) {
-                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
-				currently_reversing = true;
-            }
-            else {
-                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is not a global value\n");
-				currently_reversing = false;
-                storeVal = lookup(storeVal);
-            }
-
-            if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
-                errs() << "FOO!\n";
-                lastVal = C;
-            }
-			
-			getUseDef(&I, bucket);
+            getUseDef(&I, bucket);
 			
 			DEBUG(errs() << "Inverter: " << I << "\n");
 			DEBUG(errs() << "Inverter: Bucket contains:\n");
@@ -891,6 +950,22 @@ namespace {
 					visit(i);
 				}
 			}
+            
+            Value *storeVal = I.getPointerOperand();
+			if (isa<GlobalValue>(storeVal) /*|| isa<GetElementPtrInst>(storeVal)*/) {
+                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
+				currently_reversing = true;
+            }
+            else {
+                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is not a global value\n");
+				currently_reversing = false;
+                storeVal = lookup(storeVal);
+            }
+
+            if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
+                errs() << "FOO!\n";
+                lastVal = C;
+            }
 			
 			assert(lastVal && "lastVal not set!");
 			
@@ -1199,6 +1274,9 @@ namespace {
                 
                 BasicBlock *block = bbmOldToNew[fi];
                 
+                errs() << block->getName() << " corresponding to "
+                    << fi->getName() << "\n";
+                
                 IRBuilder<> builder(block);
                 /// Create a new Inverter (one for each BB)
                 Inverter inv(builder, M, this);
@@ -1241,11 +1319,11 @@ namespace {
                         DEBUG(errs() << "MDR: " << *mdr.getInst() << "\n");
                         
                         // Make sure local stores only store to local loads
-                        if (!isa<GlobalValue>(b->getPointerOperand())) {
-                            if (LoadInst *l = dyn_cast<LoadInst>(mdr.getInst())) {
-                                assert(l->getPointerOperand() == b->getPointerOperand());
-                            }
-                        }
+//                        if (!isa<GlobalValue>(b->getPointerOperand())) {
+//                            if (LoadInst *l = dyn_cast<LoadInst>(mdr.getInst())) {
+//                                assert(l->getPointerOperand() == b->getPointerOperand());
+//                            }
+//                        }
                         
                         stores.push(b);
                         //inv.visitStoreInst(*b);
