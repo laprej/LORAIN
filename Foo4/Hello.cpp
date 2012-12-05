@@ -985,6 +985,7 @@ namespace {
 			}
 			else {
 				DEBUG(errs() << "Inverter: " <<loadVal->getName() << " is not a global value\n");
+                loadVal = lookup(loadVal);
 			}
 			
 			/// Create a new load
