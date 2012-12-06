@@ -1,6 +1,6 @@
 SRCS = test-add.c test-add2.c test-sub.c test-sub2.c test-mul.c test-mul2.c \
 test-if.c test-if2.c test-if3.c test-if-else.c test-while.c test-while2.c   \
-test-for.c test-array.c
+test-for.c test-array.c test-random.c
 REV_OBJS = ${SRCS:.c=-output.o}
 CATCH_OBJS = ${SRCS:.c=-catch.o}
 
@@ -56,6 +56,9 @@ test-for-output.o:
 
 test-array-output.o:
 	../run.sh test-array test_array undo_test_array
+
+test-random-output.o:
+	../run.sh test-random test_random undo_test_random
 
 clean:
 	rm -f *.o *.s *.bc *.ll *~
