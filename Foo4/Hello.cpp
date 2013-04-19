@@ -1275,8 +1275,8 @@ namespace {
                 
                 BasicBlock *block = bbmOldToNew[fi];
                 
-                errs() << block->getName() << " corresponding to "
-                    << fi->getName() << "\n";
+                DEBUG(errs() << block->getName() << " corresponding to "
+                      << fi->getName() << "\n");
                 
                 IRBuilder<> builder(block);
                 /// Create a new Inverter (one for each BB)
