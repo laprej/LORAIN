@@ -963,7 +963,7 @@ namespace {
             }
 
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
-                errs() << "FOO!\n";
+                errs() << "Assigning a Constant: " << *C << "\n";
                 lastVal = C;
             }
 			
