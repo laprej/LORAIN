@@ -1170,12 +1170,6 @@ namespace {
             exit(-1);
         }
         
-        ValueToValueMapTy vmap;
-        SmallVectorImpl<ReturnInst*> Returns(1);
-        CloneFunctionInto(reverse, M.getFunction(FuncToInstrument), vmap, true, Returns, "_reverse");
-        
-        //reverse->viewCFG();
-        
         return reverse;
     }
     
@@ -1219,9 +1213,7 @@ namespace {
         Info.addRequired<LoopInfo>();
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
-    
-    //virtual bool
-    
+
     bool Hello::runOnModule(Module &M) {
         if (Function *ForwardFunc = M.getFunction(FuncToInstrument)) {
             ////////////////////////////////////////
