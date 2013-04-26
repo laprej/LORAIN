@@ -500,6 +500,31 @@ namespace {
             
             llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "_diamond");
 		}
+        
+        void visitStoreInst(StoreInst &I) {
+            if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
+                errs() << "Assigning a Constant: " << *C << "\n";
+                
+                Type *ty = C->getType();
+                
+                errs() << "We'll have to make space for a " << *ty << "\n";
+                GlobalVariable *gvar_for_constant;
+                /// GlobalVariable ctor - If a parent module is specified, the global is
+                /// automatically inserted into the end of the specified modules global list.
+//                GlobalVariable(Type *Ty, bool isConstant, LinkageTypes Linkage,
+//                               Constant *Initializer = 0, const Twine &Name = "",
+//                               bool ThreadLocal = false, unsigned AddressSpace = 0);
+                Constant *initializer = Constant::getNullValue(ty);
+                gvar_for_constant = new GlobalVariable(M, C->getType(), false,
+                                                       GlobalVariable::CommonLinkage, 0, "foobar");
+                gvar_for_constant->setInitializer(initializer);
+                // Get the original value
+                Value *foo = new LoadInst(I.getPointerOperand(), "saveValue", &I);
+                Value *bar = new StoreInst(foo, gvar_for_constant, &I);
+                markJML(foo);
+                markJML(bar);
+            }
+        }
 	};
     
     class Hello;
