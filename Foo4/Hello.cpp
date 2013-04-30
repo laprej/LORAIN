@@ -206,14 +206,11 @@ namespace {
                     //B->getParent()->getParent()->viewCFG();
                     
 					Value *Elts[] = {
-						MDString::get(getGlobalContext(), then->getName()),
-						MDString::get(getGlobalContext(), el->getName()),
+                        BlockAddress::get(then),
+                        BlockAddress::get(el),
                         ConstantInt::get(Type::getInt32Ty(getGlobalContext()), bitFieldCount)
-                        //                        MDString::get(getGlobalContext(), StringRef(bitFieldCount))
 					};
 					MDNode *Node = MDNode::get(getGlobalContext(), Elts);
-					NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.icmp");
-					NMD->addOperand(Node);
 					I->setMetadata("jml.icmp", Node);
 				}
 				else {
@@ -774,9 +771,9 @@ namespace {
                 MDNode *md = findDiamondBf(I);
 				
                 DEBUG(errs() << "Inverter: " << md->getName() << " has " << md->getNumOperands() << " operands\n");
-				MDString *then = dyn_cast<MDString>(md->getOperand(0));
+				BlockAddress *then = dyn_cast<BlockAddress>(md->getOperand(0));
 				assert(then);
-				MDString *el   = dyn_cast<MDString>(md->getOperand(1));
+				BlockAddress *el   = dyn_cast<BlockAddress>(md->getOperand(1));
 				assert(el);
                 ConstantInt *bfn = dyn_cast<ConstantInt>(md->getOperand(2));
                 assert(bfn);
