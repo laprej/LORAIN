@@ -70,26 +70,9 @@ namespace {
 	static cl::opt<std::string> FuncToGenerate("tgt-func",
 										   cl::desc("<func to output>"));//, llvm::cl::Required);
 	
+    /// Map basic blocks from (old) event handler to (new) synthesized
+    /// reverse event handler
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
-    
-    BasicBlock * findNewBBByName(StringRef sr)
-    {
-        assert(!sr.empty() && "Looking for empty BB name!");
-        
-        std::map<BasicBlock *, BasicBlock *>::iterator it, e;
-        
-        errs() << "findNewBBByName starting search for " << sr << "\n";
-        
-        for (it = bbmOldToNew.begin(), e = bbmOldToNew.end(); it != e; ++it) {
-            errs() << "comparing with " << it->first->getName() << "\n";
-            if (it->first->getName() == sr)
-                return it->second;
-        }
-        
-        errs() << "didn't find it\n";
-        
-        return 0;
-    }
 	
 #pragma mark
 #pragma mark Instrumenter
