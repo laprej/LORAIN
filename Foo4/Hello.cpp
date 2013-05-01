@@ -206,8 +206,8 @@ namespace {
                     //B->getParent()->getParent()->viewCFG();
                     
 					Value *Elts[] = {
-                        BlockAddress::get(then),
-                        BlockAddress::get(el),
+//                        BlockAddress::get(then),
+//                        BlockAddress::get(el),
                         ConstantInt::get(Type::getInt32Ty(getGlobalContext()), bitFieldCount)
 					};
 					MDNode *Node = MDNode::get(getGlobalContext(), Elts);
@@ -775,7 +775,7 @@ namespace {
 //				assert(then);
 //				BlockAddress *el   = dyn_cast<BlockAddress>(md->getOperand(1));
 //				assert(el);
-                ConstantInt *bfn = dyn_cast<ConstantInt>(md->getOperand(2));
+                ConstantInt *bfn = dyn_cast<ConstantInt>(md->getOperand(0));
                 assert(bfn);
 				/// We have two predecessors; we're going to need an "if"
 				DEBUG(errs() << "Inverter: WE NEED A BRANCH\n");
