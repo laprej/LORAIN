@@ -306,20 +306,13 @@ namespace {
 
             Value *Elts[] = {
                 /// parent
-                MDString::get(getGlobalContext(), parent->getName()),
+                BlockAddress::get(parent),
                 /// loop body
-                MDString::get(getGlobalContext(), body->getName()),
-                //MDString::get(getGlobalContext(), then->getName()),
-                //MDString::get(getGlobalContext(), el->getName()),
+                BlockAddress::get(body),
                 MDString::get(getGlobalContext(), sr)
-                //ConstantInt::get(Type::getInt32Ty(getGlobalContext()), sr)
-                //                        MDString::get(getGlobalContext(), StringRef(bitFieldCount))
             };
             MDNode *Node = MDNode::get(getGlobalContext(), Elts);
-            NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.icmp.loop");
-            NMD->addOperand(Node);
             BB->getTerminator()->setMetadata("jml.icmp.loop", Node);
-            //I->setMetadata("jml.icmp", Node);
         }
         
         void handleLoop(CmpInst &I)
@@ -827,10 +820,12 @@ namespace {
                 /// 3. Insert instructions to load and decrement the ctr var.
                 MDNode *md = header->getTerminator()->getMetadata("jml.icmp.loop");
                 assert(md && "Loop metadata not found!");
-                MDString *parent = dyn_cast<MDString>(md->getOperand(0));
-                errs() << parent->getString() << "\n";
-                MDString *body = dyn_cast<MDString>(md->getOperand(1));
-                errs() << body->getString() << "\n";
+                BlockAddress *parent = dyn_cast<BlockAddress>(md->getOperand(0));
+                assert(parent && "Parent not found!");
+                //errs() << parent->getString() << "\n";
+                BlockAddress *body = dyn_cast<BlockAddress>(md->getOperand(1));
+                assert(body && "Body not found!");
+                //errs() << body->getString() << "\n";
                 MDString *ctrNum = dyn_cast<MDString>(md->getOperand(2));
                 DEBUG(errs() << "ctrNum is " << *ctrNum << "\n");
                 DEBUG(errs() << "LOOP HEADER\n\n");
@@ -857,13 +852,10 @@ namespace {
                 /// 4. Depending on 3, loop or exit loop
                 /// WATCH RIGHT HERE I'M GOING TO CHEAT
                 
-                builder.CreateCondBr(lllll,
-                                     findNewBBByName(body->getString()),
-                                     findNewBBByName(parent->getString()));
-                
-//                BasicBlock *pred = *pred_begin(bb);
-//                BasicBlock *newSucc = bbmOldToNew[pred];
-//                builder.CreateBr(newSucc);
+                BasicBlock *newBody = bbmOldToNew[body->getBasicBlock()];
+                BasicBlock *newParent = bbmOldToNew[parent->getBasicBlock()];
+                builder.CreateCondBr(lllll, newBody, newParent);
+
                 return;
             }
 			
