@@ -759,22 +759,9 @@ namespace {
             LoopInfo *LI = h->getLoopInfo(*f);
             /// Standard ``if'' statement
 			if (count == 2 && !(LI->getLoopDepth(bb))) {
-                
-                //findDiamondBf(I);
-                
-//				NamedMDNode *nmd = M.getNamedMetadata("jml.icmp");
-//				assert(nmd);
-//				errs() << "NMD: " << nmd->getName();// << "\n";
-//				errs() << " has " << nmd->getNumOperands() << " operands\n";
-				//MDNode *md = nmd->getOperand(0);
-                
                 MDNode *md = findDiamondBf(I);
 				
                 DEBUG(errs() << "Inverter: " << md->getName() << " has " << md->getNumOperands() << " operands\n");
-//				BlockAddress *then = dyn_cast<BlockAddress>(md->getOperand(0));
-//				assert(then);
-//				BlockAddress *el   = dyn_cast<BlockAddress>(md->getOperand(1));
-//				assert(el);
                 ConstantInt *bfn = dyn_cast<ConstantInt>(md->getOperand(0));
                 assert(bfn);
 				/// We have two predecessors; we're going to need an "if"
@@ -827,27 +814,7 @@ namespace {
 				/// stored in the metadata
 				builder.CreateCondBr(llll, thenBB, elBB);
 				
-				/*
-                 
-                 Value *v = builder.CreateNUWAdd(lll, &I);
-                 //markJML(v);
-                 
-                 errs() << "got here...\n";
-                 
-                 Value *llll = builder.CreateCast(Instruction::SExt, v, ll->getType());
-                 //markJML(llll);
-                 
-                 errs() << "llll has type: " << llll->getType()->getDescription() << "\n";
-                 
-                 //markJML(b.CreateStore(llll, l));
-                 
-                 
-                 errs() << "Here, too!\n";
-                 
-                 exit(-1);
-                 */
                 return;
-				
 			}
             
             /// Standard loop construct
