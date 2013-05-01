@@ -832,12 +832,12 @@ namespace {
                 MDString *body = dyn_cast<MDString>(md->getOperand(1));
                 errs() << body->getString() << "\n";
                 MDString *ctrNum = dyn_cast<MDString>(md->getOperand(2));
-                errs() << "ctrNum is " << *ctrNum << "\n";
-                errs() << "LOOP HEADER\n\n";
-                header->dump();
-                errs() << "\nANALOG HEADER\n\n";
-                analogHeader->dump();
-                errs() << "\n";
+                DEBUG(errs() << "ctrNum is " << *ctrNum << "\n");
+                DEBUG(errs() << "LOOP HEADER\n\n");
+                DEBUG(header->dump());
+                DEBUG(errs() << "\nANALOG HEADER\n\n");
+                DEBUG(analogHeader->dump());
+                DEBUG(errs() << "\n");
                 
                 Type *newGlobal = IntegerType::get(I.getContext(), 32);
                 //Twine bfX("bf");
@@ -1079,7 +1079,7 @@ namespace {
             }
         }
         
-        I.getParent()->getParent()->dump();
+        DEBUG(I.getParent()->getParent()->dump());
         
         assert(C && "CmpInst not found!");
         
@@ -1096,9 +1096,9 @@ namespace {
         PostDominatorTree &DT = getAnalysis<PostDominatorTree>(*f);
         DomTreeNode *Rung = DT.getNode(BB);
         Rung = Rung->getIDom();
-        errs() << "PD Rung is " << Rung << "\n";
+        DEBUG(errs() << "PD Rung is " << Rung << "\n");
         BasicBlock *bb = Rung->getBlock();
-        errs() << "PD BB is " << *bb << "\n";
+        DEBUG(errs() << "PD BB is " << *bb << "\n");
         return bb;
     }
     
