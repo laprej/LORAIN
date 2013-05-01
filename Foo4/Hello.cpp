@@ -771,10 +771,10 @@ namespace {
                 MDNode *md = findDiamondBf(I);
 				
                 DEBUG(errs() << "Inverter: " << md->getName() << " has " << md->getNumOperands() << " operands\n");
-				BlockAddress *then = dyn_cast<BlockAddress>(md->getOperand(0));
-				assert(then);
-				BlockAddress *el   = dyn_cast<BlockAddress>(md->getOperand(1));
-				assert(el);
+//				BlockAddress *then = dyn_cast<BlockAddress>(md->getOperand(0));
+//				assert(then);
+//				BlockAddress *el   = dyn_cast<BlockAddress>(md->getOperand(1));
+//				assert(el);
                 ConstantInt *bfn = dyn_cast<ConstantInt>(md->getOperand(2));
                 assert(bfn);
 				/// We have two predecessors; we're going to need an "if"
@@ -819,44 +819,7 @@ namespace {
                     bbv[1] = temp;
                 }
 				
-				BasicBlock *thenBB = 0, *elBB = 0;
-				Function *F = foo->getParent();
-				/// Find the "then" block
-				Function::iterator it, E;
-				for (it = F->begin(), E = F->end(); it != E; ++it) {
-					//std::string str = then->getString();
-                    std::string str = bbv[0]->getName();
-					str += "_rev";
-					DEBUG(errs() << "Inverter: Comparing " << str << " and " << it->getName());
-					if (str == it->getName()) {
-						DEBUG(errs() << " Got it!\n");
-						thenBB = it;
-					}
-					DEBUG(errs() << "\n");
-					
-					//std::string str2 = el->getString();
-                    std::string str2 = bbv[1]->getName();
-					str2 += "_rev";
-					DEBUG(errs() << "Inverter: Comparing " << str2 << " and " << it->getName());
-					if (str2 == it->getName()) {
-						DEBUG(errs() << " Got it!\n");
-						elBB = it;
-					}
-					DEBUG(errs() << "\n");
-				}
-//                for (it = F->begin(), E = F->end(); it != E; ++it) {
-//                    if (bbv[0] == it) {
-//                        thenBB = it;
-//                        break;
-//                    }
-//                }
-//                for (it = F->begin(), E = F->end(); it != E; ++it) {
-//                    if (bbv[1] == it) {
-//                        elBB = it;
-//                        break;
-//                    }
-//                }
-                
+				BasicBlock *thenBB = bbmOldToNew[bbv[0]], *elBB = bbmOldToNew[bbv[1]];
 				
 				assert(thenBB);
 				assert(elBB);
