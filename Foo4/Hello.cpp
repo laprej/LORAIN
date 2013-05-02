@@ -95,35 +95,6 @@ namespace {
             loopCount = 0;
 		}
 		
-		/* /// GetOrCreateAnchor - Look up an anchor for the specified tag and name.  If it
-         /// already exists, return it.  If not, create a new one and return it.
-         DIAnchor DIFactory::GetOrCreateAnchor(unsigned TAG, const char *Name) {
-         const Type *EltTy = StructType::get(Type::Int32Ty, Type::Int32Ty, NULL);
-         
-         // Otherwise, create the global or return it if already in the module.
-         Constant *C = M.getOrInsertGlobal(Name, EltTy);
-         assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
-         GlobalVariable *GV = cast<GlobalVariable>(C);
-         
-         // If it has an initializer, it is already in the module.
-         if (GV->hasInitializer()) 
-         return SubProgramAnchor = DIAnchor(GV);
-         
-         GV->setLinkage(GlobalValue::LinkOnceAnyLinkage);
-         GV->setSection("llvm.metadata");
-         GV->setConstant(true);
-         M.addTypeName("llvm.dbg.anchor.type", EltTy);
-         
-         // Otherwise, set the initializer.
-         Constant *Elts[] = {
-         GetTagConstant(dwarf::DW_TAG_anchor),
-         ConstantInt::get(Type::Int32Ty, TAG)
-         };
-         
-         GV->setInitializer(ConstantStruct::get(Elts, 2));
-         return DIAnchor(GV);
-         } */
-		
         std::string newBitFieldName(StringRef s)
         {
             //static unsigned bitFieldCount = 0;
@@ -1263,25 +1234,6 @@ namespace {
                 DEBUG(errs() << "BASIC BLOCK: ");
                 DEBUG(errs() << block->getName() << "\n");
             }
-            
-            ////////////////////////////////////////
-            /// Handle Loops here...
-            ////////////////////////////////////////
-            typedef std::vector<BasicBlock*>::iterator vbi;
-            for (vbi bi = loopBBs.begin(),be = loopBBs.end(); bi != be; ++bi) {
-                
-            }
-            
-            
-            /*
-             for (inst_iterator I = inst_begin(rev), E = inst_end(rev); I != E; ++I) {
-             if (StoreInst *b = dyn_cast<StoreInst>(&*I)) {
-             negateStoreInstruction(b);
-             }
-             }
-             */
-            
-            //rev->viewCFG();
             
             return true;
         }
