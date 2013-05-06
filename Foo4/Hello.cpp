@@ -41,7 +41,6 @@
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/Cloning.h"
