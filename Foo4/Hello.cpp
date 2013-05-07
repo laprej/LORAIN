@@ -1119,6 +1119,19 @@ namespace {
             
             errs() << "Instrumentation phase beginning...\n\n";
             
+            // Make sure all blocks have names...
+            Function::iterator fi, fe;
+            for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
+                BasicBlock *bb = fi;
+                if (!fi->hasName()) {
+                    if (&ForwardFunc->getEntryBlock() == bb) {
+                        bb->setName("entry");
+                        continue;
+                    }
+                    bb->setName("bb");
+                }
+            }
+            
             Instrumenter instrumenter(M, this);
             for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
                 instrumenter.visit(&*I);
@@ -1137,7 +1150,6 @@ namespace {
             bbmNewToOld[newBlock] = bb;
             
             /// Make analogs to all BBs in function
-            Function::iterator fi, fe;
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 if (bb == fi) {
                     continue;
