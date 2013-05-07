@@ -1155,12 +1155,6 @@ namespace {
             errs() << "Piece-wise (BB-based) inversion phase beginning...\n\n";
             
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
-                // If our old block is in a loop, skip for now
-                if (LI.getLoopDepth(fi)) {
-                    errs() << fi->getName() << " is in a loop, bailing out\n";
-                    loopBBs.push_back(fi);
-                    //continue;
-                }
                 
                 BasicBlock *block = bbmOldToNew[fi];
                 
