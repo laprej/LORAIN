@@ -120,17 +120,7 @@ namespace {
 			}
 			
 			GV->setLinkage(GlobalValue::LinkOnceAnyLinkage);
-			//GV->setSection("llvm.metadata");
 			GV->setConstant(false);
-			//M.addTypeName("llvm.dbg.anchor.type", EltTy);
-			
-			// Otherwise, set the initializer.
-			//Constant *Elts[] = {
-			//	GetTagConstant(dwarf::DW_TAG_anchor),
-			//	ConstantInt::get(Type::Int32Ty, TAG)
-			//};
-			//
-			//GV->setInitializer(ConstantStruct::get(Elts, 2));
 			
 			IRBuilder<> temp(getGlobalContext());
 			GV->setInitializer(temp.getInt32(0));
