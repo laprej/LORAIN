@@ -431,7 +431,8 @@ namespace {
             
             DEBUG(errs() << "Instrumenter: We have " << Preds.size() << " predecessors\n");
             
-            llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "_diamond");
+            //llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "_diamond");
+            llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
 		}
         
         void visitStoreInst(StoreInst &I) {
@@ -662,8 +663,6 @@ namespace {
             for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
                 BasicBlock *Pred = *PI;
                 DEBUG(errs() << "Inverter: pred of " << bb->getName() << ": " << Pred->getName() << "\n");
-                // ...
-                //pred_list.push_back(Pred);
                 
                 bbv.push_back(Pred);
                 
@@ -687,7 +686,8 @@ namespace {
 			if (count == 1) {
 				BasicBlock *pred = *pred_begin(bb);
 				BasicBlock *newSucc = bbmOldToNew[pred];
-				builder.CreateBr(newSucc);
+				Value *v = builder.CreateBr(newSucc);
+                errs() << "single predecessor: " << *v << "\n";
 				return;
 			}
 			
@@ -795,7 +795,9 @@ namespace {
                 /// 4. Depending on 3, loop or exit loop
                 /// WATCH RIGHT HERE I'M GOING TO CHEAT
                 
-                BasicBlock *newBody = bbmOldToNew[body->getBasicBlock()];
+                //BasicBlock *newBody = bbmOldToNew[body->getBasicBlock()];
+                BasicBlock *latch = LI->getLoopFor(bb)->getLoopLatch();
+                BasicBlock *newBody = bbmOldToNew[latch];
                 BasicBlock *newParent = bbmOldToNew[parent->getBasicBlock()];
                 builder.CreateCondBr(lllll, newBody, newParent);
 
@@ -1151,12 +1153,32 @@ namespace {
                 bbmNewToOld[block] = fi;
             }
             
-            LoopInfo &LI = getAnalysis<LoopInfo>(*ForwardFunc);
-            std::vector<BasicBlock*> loopBBs;
-            
             errs() << "Piece-wise (BB-based) inversion phase beginning...\n\n";
             
-            for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
+            std::vector<BasicBlock *> fifo;
+            
+            unsigned sccNum = 0;
+            errs() << "SCCs for Function " << ForwardFunc->getName() << " in PostOrder:";
+            for (scc_iterator<Function*> SCCI = scc_begin(ForwardFunc),
+                 E = scc_end(ForwardFunc); SCCI != E; ++SCCI) {
+                std::vector<BasicBlock*> &nextSCC = *SCCI;
+                errs() << "\nSCC #" << ++sccNum << " : ";
+                for (std::vector<BasicBlock*>::iterator I = nextSCC.begin(),
+                     E = nextSCC.end(); I != E; ++I) {
+                    errs() << (*I)->getName() << ", ";
+                    BasicBlock *foobar = *I;
+                    fifo.push_back(foobar);
+                }
+                if (nextSCC.size() == 1 && SCCI.hasLoop())
+                    errs() << " (Has self-loop).";
+            }
+            errs() << "\n";
+                        
+            for (unsigned int i = 0; i < fifo.size(); ++i) {
+                errs() << "Looking at " << fifo[i]->getName() << "\n";
+                BasicBlock *fi = fifo[i];
+            //fifo.pop_front();
+            //for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 
                 BasicBlock *block = bbmOldToNew[fi];
                 

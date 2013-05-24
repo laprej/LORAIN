@@ -16,7 +16,8 @@ if [ -d "$DIRECTORY" ]; then
 #    echo $PATH
 fi
 
-DIRECTORY="/Users/jlapre/temp/llvm-gcc/bin"
+#DIRECTORY="/Users/jlapre/temp/llvm-gcc/bin"
+DIRECTORY="/Users/laprej/temp/clang+llvm-3.2-x86_64-apple-darwin11/bin"
 
 if [ -d "$DIRECTORY" ]; then
 #    echo "$DIRECTORY found"
@@ -25,12 +26,12 @@ if [ -d "$DIRECTORY" ]; then
 fi
 
 # odin directory layout
-DIRECTORY="/Users/laprej/temp/llvm-3.0-install/bin"
+DIRECTORY="/Users/laprej/temp/llvm-3.2-install/bin"
 
 if [ -d "$DIRECTORY" ]; then
 #    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
-    LIB="/Users/laprej/temp/llvm-3.0-install/lib/LLVMFoo4.dylib"
+    LIB="/Users/laprej/temp/llvm-3.2-install/lib/LLVMFoo4.dylib"
 #    echo $PATH
 fi
 
@@ -48,9 +49,9 @@ then
     exit
 fi
 
-llvm-gcc -emit-llvm $1.c -c -o $1.bc
+clang -emit-llvm $1.c -c -o $1.bc
 
-llvm-gcc -emit-llvm $1.c -S -o $1.ll
+clang -emit-llvm $1.c -S -o $1.ll
 
 echo "opt $DBG -break-crit-edges -loop-simplify -indvars -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc"
 
