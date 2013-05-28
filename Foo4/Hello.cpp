@@ -885,8 +885,17 @@ namespace {
 			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION END\n");
 		}
         
+        // TODO: Add support for floating-point operations!
         void visitCallInst(CallInst &I) {
-            errs() << I.getCalledFunction()->getName() << " called\n";
+            Function *fun = I.getCalledFunction();
+            StringRef str = fun->getName();
+            DEBUG(errs() << str << " called\n");
+            
+            if (str == "rng_gen_val") {
+                errs() << "We need to reverse the RNG\n";
+                Value *G = I.getArgOperand(0);
+                builder.CreateCall(fun, G);
+            }
         }
 		
 		void visitBinaryOperator(BinaryOperator &I) {
