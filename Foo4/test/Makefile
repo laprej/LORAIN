@@ -10,10 +10,10 @@ all: tester
 	./tester
 
 tester: ${test-objs} main.o
-	g++ -o tester main.o ${test-objs}
+	clang++ -o tester main.o ${test-objs}
 
 .cpp.o:
-	g++ -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+	clang++ -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 test-add-output.o:
 	../run.sh test-add test_add undo_test_add
