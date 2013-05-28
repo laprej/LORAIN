@@ -884,6 +884,10 @@ namespace {
 			outputMap();
 			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION END\n");
 		}
+        
+        void visitCallInst(CallInst &I) {
+            errs() << I.getCalledFunction()->getName() << " called\n";
+        }
 		
 		void visitBinaryOperator(BinaryOperator &I) {
 			Value *newInstruction;
@@ -1189,7 +1193,7 @@ namespace {
                 /// Create a new Inverter (one for each BB)
                 Inverter inv(builder, M, this);
                 
-                std::stack<StoreInst*> stores;
+                std::stack<Instruction*> stores;
                 
                 for (BasicBlock::iterator j = fi->begin(), k = fi->end(); j != k; ++j) {
                     if (j->getMetadata("jml")) {
@@ -1236,14 +1240,23 @@ namespace {
                         stores.push(b);
                         //inv.visitStoreInst(*b);
                     }
+                    
+                    if (CallInst *c = dyn_cast<CallInst>(j)) {
+                        stores.push(c);
+                    }
                 }
                 
-                StoreInst * cur;
+                Instruction *cur;
                 while (stores.size()) {
                     cur = stores.top();
                     stores.pop();
                     
-                    inv.visitStoreInst(*cur);
+                    if (StoreInst *store = dyn_cast<StoreInst>(cur)) {
+                        inv.visitStoreInst(*store);
+                    }
+                    if (CallInst *call = dyn_cast<CallInst>(cur)) {
+                        inv.visitCallInst(*call);
+                    }
                 }
                 
                 inv.visitTerminatorInst(*fi->getTerminator());
