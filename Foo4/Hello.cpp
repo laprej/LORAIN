@@ -918,7 +918,9 @@ namespace {
             StringRef str = fun->getName();
             DEBUG(errs() << str << " called\n");
             
-            if (str == "rng_gen_val") {
+            if (str == "rng_gen_val" ||
+                str == "tw_rand_integer" ||
+                str == "tw_rand_exponential") {
                 std::vector<Value *> bucket;
                 //oldToNew.clear();
                 
@@ -941,8 +943,11 @@ namespace {
                 }
                 
                 errs() << "We need to reverse the RNG\n";
+                // Fortunately, all the rng functions pass the tw_rng_stream as their first param
                 Value *G = I.getArgOperand(0);
-                builder.CreateCall(fun, lookup(G));
+                Function *reverse_rng = M.getFunction("rng_gen_reverse_val");
+                assert(reverse_rng && "rng_gen_reverse_val not found!");
+                builder.CreateCall(reverse_rng, lookup(G));
             }
         }
 		
