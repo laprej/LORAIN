@@ -595,7 +595,33 @@ namespace {
 			//oldToNew.clear();
 
             Value *storeVal = I.getPointerOperand();
-			if (isa<GlobalValue>(storeVal)) {
+            
+            if (Argument *a = dyn_cast<Argument>(storeVal)) {
+                errs() << "Argument\n";
+                // Pass arguments to I into our new GEP instruction
+                std::vector<Value *> arr;
+                arr.push_back(I.getOperand(1));
+                arr.push_back(lookup(I.getOperand(2)));
+                
+                unsigned int i;
+                Function::arg_iterator fi, fe, gi, ge;
+                Function *f = I.getParent()->getParent();
+                Function *g = M.getFunction(FuncToGenerate);
+
+                for (fi = f->arg_begin(), fe = f->arg_end(), gi = g->arg_begin(), ge = g->arg_end(), i = 0;
+                     fi != fe; ++fi, ++gi, ++i) {
+                    if (a->getArgNo() == i) {
+                        errs() << "Found our argument, replacing it with the new arg\n";
+                        Value *v = gi;
+                        lastVal = builder.CreateGEP(v, arr);
+                        oldToNew[&I] = lastVal;
+                        break;
+                    }
+                }
+                
+                return;
+            }
+			else if (isa<GlobalValue>(storeVal)) {
                 DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
 				currently_reversing = true;
             }
@@ -885,16 +911,38 @@ namespace {
 			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION END\n");
 		}
         
-        // TODO: Add support for floating-point operations!
         void visitCallInst(CallInst &I) {
+            DEBUG(errs() << "\n\n\nInverter: CALL INSTRUCTION\n");
+            
             Function *fun = I.getCalledFunction();
             StringRef str = fun->getName();
             DEBUG(errs() << str << " called\n");
             
             if (str == "rng_gen_val") {
+                std::vector<Value *> bucket;
+                //oldToNew.clear();
+                
+                getUseDef(&I, bucket);
+                
+                DEBUG(errs() << "Inverter: " << I << "\n");
+                DEBUG(errs() << "Inverter: Bucket contains:\n");
+                for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
+                     it != e; ++it) {
+                    DEBUG(errs() << "Inverter: " << **it << "\n");
+                }
+                
+                while (bucket.size()) {
+                    Value *v = bucket.back();
+                    bucket.pop_back();
+                    
+                    if (Instruction *i = dyn_cast<Instruction>(v)) {
+                        visit(i);
+                    }
+                }
+                
                 errs() << "We need to reverse the RNG\n";
                 Value *G = I.getArgOperand(0);
-                builder.CreateCall(fun, G);
+                builder.CreateCall(fun, lookup(G));
             }
         }
 		
@@ -1054,9 +1102,10 @@ namespace {
     
     Function *Hello::createReverseFunction(Module &M)
     {
+        Function *forward = M.getFunction(FuncToInstrument);
+        
         Constant *temp = M.getOrInsertFunction(FuncToGenerate,
-                                               Type::getVoidTy(M.getContext()),
-                                               (Type *)0);
+                                               forward->getFunctionType());
         
         if (!temp) {
             DEBUG(errs() << "We have a problem\n");
@@ -1275,6 +1324,9 @@ namespace {
             }
             
             return true;
+        }
+        else {
+            errs() << "Error: unable to find function " << FuncToInstrument << "\n";
         }
         return true;
     }
