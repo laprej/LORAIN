@@ -431,7 +431,6 @@ namespace {
             
             DEBUG(errs() << "Instrumenter: We have " << Preds.size() << " predecessors\n");
             
-            //llvm::SplitBlockPredecessors(bb, Preds.data(), Preds.size(), "_diamond");
             llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
 		}
         
@@ -580,7 +579,7 @@ namespace {
         
         void visitSExtInst(SExtInst &I)
         {
-            errs() << "Inverter: SExtInst\n";
+            DEBUG(errs() << "Inverter: SExtInst\n");
             
             Value *v = builder.CreateSExt(lookup(I.getOperand(0)), I.getDestTy());
             
@@ -589,7 +588,7 @@ namespace {
 		
         void visitGetElementPtrInst(GetElementPtrInst &I)
         {
-            errs() << "Inverter: GetElementPtrInst\n";
+            DEBUG(errs() << "Inverter: GetElementPtrInst\n");
 
 			std::vector<Value *> bucket;
 			//oldToNew.clear();
@@ -597,7 +596,7 @@ namespace {
             Value *storeVal = I.getPointerOperand();
             
             if (Argument *a = dyn_cast<Argument>(storeVal)) {
-                errs() << "Argument\n";
+                DEBUG(errs() << "Argument\n");
                 // Pass arguments to I into our new GEP instruction
                 std::vector<Value *> arr;
                 arr.push_back(I.getOperand(1));
@@ -611,7 +610,7 @@ namespace {
                 for (fi = f->arg_begin(), fe = f->arg_end(), gi = g->arg_begin(), ge = g->arg_end(), i = 0;
                      fi != fe; ++fi, ++gi, ++i) {
                     if (a->getArgNo() == i) {
-                        errs() << "Found our argument, replacing it with the new arg\n";
+                        DEBUG(errs() << "Found our argument, replacing it with the new arg\n");
                         Value *v = gi;
                         lastVal = builder.CreateGEP(v, arr);
                         oldToNew[&I] = lastVal;
