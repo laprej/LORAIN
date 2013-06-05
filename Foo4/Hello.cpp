@@ -1039,6 +1039,9 @@ namespace {
 #pragma mark
 #pragma mark Hello
     
+#undef DEBUG_TYPE
+#define DEBUG_TYPE "Hello"
+    
     LoopInfo * Hello::getLoopInfo(Function &f)
     {
         LoopInfo &LI = getAnalysis<LoopInfo>(f);
@@ -1241,7 +1244,7 @@ namespace {
             errs() << "\n";
                         
             for (unsigned int i = 0; i < fifo.size(); ++i) {
-                errs() << "Looking at " << fifo[i]->getName() << "\n";
+                DEBUG(errs() << "Looking at " << fifo[i]->getName() << "\n");
                 BasicBlock *fi = fifo[i];
             //fifo.pop_front();
             //for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
@@ -1290,7 +1293,7 @@ namespace {
                         
                         DEBUG(errs() << "Instruction " << *b << ": ");
                         
-                        DEBUG(errs() << "MDR: " << *mdr.getInst() << "\n");
+                        DEBUG(errs() << "\nMDR: " << *mdr.getInst() << "\n");
                         
                         // Make sure local stores only store to local loads
 //                        if (!isa<GlobalValue>(b->getPointerOperand())) {
