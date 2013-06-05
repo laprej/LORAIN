@@ -1269,12 +1269,6 @@ namespace {
                         inv.visitAllocaInst(*a);
                     }
                     
-                    /*
-                     if (TerminatorInst *t = dyn_cast<TerminatorInst>(j)) {
-                     inv.visitTerminatorInst(*t);
-                     }
-                     */
-                    
                     if (StoreInst *b = dyn_cast<StoreInst>(j)) {
                         //negateStoreInstruction(b);
                         //Inverter inv;
@@ -1303,7 +1297,6 @@ namespace {
 //                        }
                         
                         stores.push(b);
-                        //inv.visitStoreInst(*b);
                     }
                     
                     if (CallInst *c = dyn_cast<CallInst>(j)) {
