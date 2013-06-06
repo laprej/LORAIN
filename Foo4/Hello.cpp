@@ -72,6 +72,23 @@ namespace {
     /// Map basic blocks from (old) event handler to (new) synthesized
     /// reverse event handler
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
+    
+    /// atadatem = reverse metadata
+    class Atadatem
+    {
+        const MDNode *mdnode;
+        
+        bool skip = false;
+        
+    public:
+        explicit Atadatem(const MDNode *N) : mdnode(N) {}
+        
+        operator MDNode *() const { return const_cast<MDNode*>(mdnode); }
+        MDNode *operator ->() const { return const_cast<MDNode*>(mdnode); }
+        
+        bool isSkip() const { return skip; }
+        void setSkip(bool b) { skip = b; }
+    };
 	
 #pragma mark
 #pragma mark Instrumenter
