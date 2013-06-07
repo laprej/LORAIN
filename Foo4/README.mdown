@@ -20,13 +20,15 @@ Then run the **run.sh** script or use the Makefile.  Available
 
 ### Metadata ###
 
-Metadata should help us solve some of these problems.  Our metadata,
+[Metadata](http://llvm.org/docs/doxygen/html/classllvm_1_1MDNode.html)
+should help us solve some of these problems.  Our metadata,
 accessible via `getMetadata("jml")` is currently used to ignore
-instructions that we inserted which is rather limiting.  It is also
+instructions that we inserted.  This is rather limiting.  It is also
 used to mark `CmpInst` instructions so we can keep track of appropriate
 block information and loop metadata, too.  Available MD strings are:
 * jml
 * jml.icmp
 * jml.icmp.loop
 
-This should be rewritten.
+The above strings represent what needs to be able to be expressed by
+our new MD approach...
