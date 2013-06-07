@@ -18,6 +18,8 @@ the process of being added.  It can be run like this:
 Then run the **run.sh** script or use the Makefile.  Available
 **debug-only** options are **Instrumenter**, **Inverter**, and **Hello**.
 
+### Metadata ###
+
 Metadata should help us solve some of these problems.  Our metadata,
 accessible via `getMetadata("jml")` is currently used to ignore
 instructions that we inserted which is rather limiting.  It is also
