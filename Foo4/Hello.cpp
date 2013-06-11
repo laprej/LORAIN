@@ -450,7 +450,7 @@ namespace {
             
             llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
 		}
-        
+#if 0
         void visitStoreInst(StoreInst &I) {
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
                 errs() << "Assigning a Constant: " << *C << "\n";
@@ -475,6 +475,7 @@ namespace {
                 markJML(bar);
             }
         }
+#endif
 	};
     
     class Hello;
