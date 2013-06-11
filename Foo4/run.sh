@@ -51,7 +51,13 @@ fi
 
 clang -emit-llvm $1.c -c -o $1.bc
 
-clang -emit-llvm $1.c -S -o $1.ll
+SCLIB="/Users/laprej/temp/llvm-3.2-install/lib/BCGEPs.dylib"
+echo "opt -load $SCLIB -break-constgeps < $1.bc > $1-nogeps.bc"
+opt -load $SCLIB -break-constgeps < $1.bc > $1-nogeps.bc
+
+cp $1-nogeps.bc $1.bc
+
+llvm-dis $1.bc
 
 echo "opt $DBG -break-crit-edges -loop-simplify -indvars -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 < $1.bc > $1-output.bc"
 
