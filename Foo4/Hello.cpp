@@ -145,17 +145,12 @@ namespace {
 			return C;
 		}
 		
-		void markJML(Value *v) {
-			if (Instruction *I = dyn_cast<Instruction>(v)) {
-				MDNode *Node = MDNode::get(getGlobalContext(), 0);
-				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
-				//NMD->addOperand(Node);
-				I->setMetadata("jml", Node);
-			}
-			
-			if (CmpInst *I = dyn_cast<CmpInst>(v)) {
+		MDNode * markJML(Value *v) {
+            MDNode *ret = 0;
+            
+			if (CmpInst *C = dyn_cast<CmpInst>(v)) {
 				/// Assert that the next instruction is a branch
-				BasicBlock::iterator it(I);
+				BasicBlock::iterator it(C);
 				++it;
 				if (BranchInst *B = dyn_cast<BranchInst>(it)) {
 					assert(B->getNumSuccessors() == 2 && "Branch doesn't have two sucessors!");
@@ -170,13 +165,26 @@ namespace {
 //                        BlockAddress::get(el),
                         ConstantInt::get(Type::getInt32Ty(getGlobalContext()), bitFieldCount)
 					};
-					MDNode *Node = MDNode::get(getGlobalContext(), Elts);
-					I->setMetadata("jml.icmp", Node);
+					ret = MDNode::get(getGlobalContext(), Elts);
+					C->setMetadata("jml.icmp", ret);
 				}
 				else {
 					assert(isa<BranchInst>(it) && "CmpInst not followed by BranchInst!");
 				}
 			}
+            
+            if (Instruction *I = dyn_cast<Instruction>(v)) {
+                Value *Elts[] = {
+                    ConstantInt::getTrue(getGlobalContext()), // skip
+                    ret
+                };
+				ret = MDNode::get(getGlobalContext(), Elts);
+				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
+				//NMD->addOperand(Node);
+				I->setMetadata("jml", ret);
+			}
+            
+            return ret;
 		}
         
         void throwOutPred(SmallVector<BasicBlock *, 4> &Preds)
@@ -450,7 +458,7 @@ namespace {
             
             llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
 		}
-#if 0
+
         void visitStoreInst(StoreInst &I) {
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
                 errs() << "Assigning a Constant: " << *C << "\n";
@@ -471,11 +479,12 @@ namespace {
                 // Get the original value
                 Value *foo = new LoadInst(I.getPointerOperand(), "saveValue", &I);
                 Value *bar = new StoreInst(foo, gvar_for_constant, &I);
+                // We have to adjust markJML to add MD that doesn't cause skips
                 markJML(foo);
                 markJML(bar);
             }
         }
-#endif
+
 	};
     
     class Hello;
@@ -1279,7 +1288,8 @@ namespace {
                 std::stack<Instruction*> stores;
                 
                 for (BasicBlock::iterator j = fi->begin(), k = fi->end(); j != k; ++j) {
-                    if (j->getMetadata("jml")) {
+                    if (MDNode *N = j->getMetadata("jml")) {
+                        Atadatem md(N);
                         continue;
                     }
                     
