@@ -78,13 +78,11 @@ namespace {
     /// atadatem = reverse metadata
     class Atadatem : DIDescriptor
     {
-        bool skip = true;
-        
     public:
         explicit Atadatem(const MDNode *N) : DIDescriptor(N) { }
         
-        bool isSkip() const { return skip; }
-        void setSkip(bool b) { skip = b; }
+        bool isSkip() const { return getUnsignedField(0) != 0; }
+        //void setSkip(bool b) { skip = b; }
     };
 	
 #pragma mark
@@ -142,7 +140,7 @@ namespace {
 			return C;
 		}
 		
-		MDNode * markJML(Value *v) {
+		MDNode * markJML(Value *v, bool skip = true) {
             MDNode *ret = 0;
             
 			if (CmpInst *C = dyn_cast<CmpInst>(v)) {
@@ -172,7 +170,7 @@ namespace {
             
             if (Instruction *I = dyn_cast<Instruction>(v)) {
                 Value *Elts[] = {
-                    ConstantInt::getTrue(getGlobalContext()), // skip
+                    ConstantInt::get(Type::getInt1Ty(getGlobalContext()), skip ? 1 : 0), // skip
                     ret
                 };
 				ret = MDNode::get(getGlobalContext(), Elts);
