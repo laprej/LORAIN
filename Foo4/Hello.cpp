@@ -58,6 +58,8 @@
 
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 
+#include "llvm/DebugInfo.h"
+
 using namespace llvm;
 
 
@@ -74,17 +76,12 @@ namespace {
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
     
     /// atadatem = reverse metadata
-    class Atadatem
+    class Atadatem : DIDescriptor
     {
-        const MDNode *mdnode;
-        
-        bool skip = false;
+        bool skip = true;
         
     public:
-        explicit Atadatem(const MDNode *N) : mdnode(N) {}
-        
-        operator MDNode *() const { return const_cast<MDNode*>(mdnode); }
-        MDNode *operator ->() const { return const_cast<MDNode*>(mdnode); }
+        explicit Atadatem(const MDNode *N) : DIDescriptor(N) { }
         
         bool isSkip() const { return skip; }
         void setSkip(bool b) { skip = b; }
@@ -1290,7 +1287,9 @@ namespace {
                 for (BasicBlock::iterator j = fi->begin(), k = fi->end(); j != k; ++j) {
                     if (MDNode *N = j->getMetadata("jml")) {
                         Atadatem md(N);
-                        continue;
+                        if (md.isSkip()) {
+                            continue;
+                        }
                     }
                     
                     if (AllocaInst *a = dyn_cast<AllocaInst>(j)) {
