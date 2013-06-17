@@ -876,8 +876,6 @@ namespace {
 
             /// This is really hacky but should work for now
             if (MDNode *md = I.getMetadata("jml.swap")) {
-                errs() << "jml.swap!\n";
-                
                 Value *originalValue = md->getOperand(0);
                 Value *ov = builder.CreateLoad(originalValue);
                 builder.CreateStore(ov, I.getPointerOperand());
