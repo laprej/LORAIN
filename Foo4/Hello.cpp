@@ -477,6 +477,14 @@ namespace {
                 // We have to adjust markJML to add MD that doesn't cause skips
                 markJML(foo);
                 markJML(bar);
+                
+                /// Create the MD for this swap
+                Value *Elts[] = {
+                    gvar_for_constant
+                };
+				MDNode *extra = MDNode::get(getGlobalContext(), Elts);
+                I.setMetadata("jml.swap", extra);
+				markJML(&I, false);
             }
         }
 
@@ -865,10 +873,19 @@ namespace {
         
         void visitStoreInst(StoreInst &I) {
             DEBUG(errs() << "\n\n\nInverter: STORE INSTRUCTION\n");
+
+            /// This is really hacky but should work for now
+            if (MDNode *md = I.getMetadata("jml.swap")) {
+                errs() << "jml.swap!\n";
+                
+                Value *originalValue = md->getOperand(0);
+                Value *ov = builder.CreateLoad(originalValue);
+                builder.CreateStore(ov, I.getPointerOperand());
+                
+                return;
+            }
 			
 			std::vector<Value *> bucket;
-			//oldToNew.clear();
-            
             getUseDef(&I, bucket);
 			
 			DEBUG(errs() << "Inverter: " << I << "\n");
