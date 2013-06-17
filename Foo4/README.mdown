@@ -27,6 +27,7 @@ instructions that we inserted.  This is rather limiting.  It is also
 used to mark `CmpInst` instructions so we can keep track of appropriate
 block information and loop metadata, too.  Available MD strings are:
 * jml
+* jml.swap
 * jml.icmp
 * jml.icmp.loop
 
