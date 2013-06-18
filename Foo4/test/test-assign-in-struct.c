@@ -1,13 +1,10 @@
-typedef struct {
-  int x;
-  int y;
-} foo;
+#include "test-assign-in-struct.h"
 
-foo test_assign_x;
+struct test_assign_in_struct t;
 
-void undo_test_assign(void);
+void undo_test_assign_in_struct(void);
 
-void test_assign(void)
+void test_assign_in_struct(void)
 {
-    test_assign_x.x = 3;
+    t.x = 3;
 }
