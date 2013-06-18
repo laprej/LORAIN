@@ -874,15 +874,6 @@ namespace {
         void visitStoreInst(StoreInst &I) {
             DEBUG(errs() << "\n\n\nInverter: STORE INSTRUCTION\n");
 
-            /// This is really hacky but should work for now
-            if (MDNode *md = I.getMetadata("jml.swap")) {
-                Value *originalValue = md->getOperand(0);
-                Value *ov = builder.CreateLoad(originalValue);
-                builder.CreateStore(ov, I.getPointerOperand());
-                
-                return;
-            }
-			
 			std::vector<Value *> bucket;
             getUseDef(&I, bucket);
 			
@@ -901,6 +892,15 @@ namespace {
 					visit(i);
 				}
 			}
+            
+            /// This is really hacky but should work for now
+            if (MDNode *md = I.getMetadata("jml.swap")) {
+                Value *originalValue = md->getOperand(0);
+                Value *ov = builder.CreateLoad(originalValue);
+                builder.CreateStore(ov, lookup(I.getPointerOperand()));
+                
+                return;
+            }
             
             Value *storeVal = I.getPointerOperand();
 			if (isa<GlobalValue>(storeVal) /*|| isa<GetElementPtrInst>(storeVal)*/) {
