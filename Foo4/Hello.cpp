@@ -1305,9 +1305,11 @@ namespace {
                         }
                     }
                     
-                    if (AllocaInst *a = dyn_cast<AllocaInst>(j)) {
-                        inv.visitAllocaInst(*a);
-                    }
+                    /// Leave the Alloca visitor but just don't call it here
+                    /// Handle it via Store visitor like all others
+//                    if (AllocaInst *a = dyn_cast<AllocaInst>(j)) {
+//                        inv.visitAllocaInst(*a);
+//                    }
                     
                     if (StoreInst *b = dyn_cast<StoreInst>(j)) {
                         //negateStoreInstruction(b);
@@ -1336,7 +1338,14 @@ namespace {
 //                            }
 //                        }
                         
-                        stores.push(b);
+                        if (AllocaInst *a = dyn_cast<AllocaInst>(mdr.getInst())) {
+                            /// We have a local variable that we're storing into
+                            /// Add an AllocaInst and update the mappings for lookup()
+#error Fix this!
+                        }
+                        else {
+                            stores.push(b);
+                        }
                     }
                     
                     if (CallInst *c = dyn_cast<CallInst>(j)) {
