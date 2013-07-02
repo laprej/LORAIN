@@ -686,7 +686,7 @@ namespace {
             std::vector<Value *> arr;
             arr.push_back(I.getOperand(1));
             arr.push_back(lookup(I.getOperand(2)));
-            lastVal = builder.CreateGEP(I.getOperand(0), arr);
+            lastVal = builder.CreateGEP(lookup(I.getOperand(0)), arr);
             
             oldToNew[&I] = lastVal;
             
@@ -1050,6 +1050,22 @@ namespace {
 					DEBUG(errs() << std::string(2*indent, ' '));
                     DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
 				}
+                else if (Argument *a = dyn_cast<Argument>(v)) {
+                    errs() << "We have an argument!\n";
+                    errs() << "It's arg no. " << a->getArgNo() << "\n";
+                    errs() << "Assuming symmetric arguments.\n";
+                    
+                    Function *f = M.getFunction(FuncToGenerate);
+                    f->getArgumentList();
+                    Function::arg_iterator fi, fe;
+                    unsigned i;
+                    for (i = 0, fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi, ++i) {
+                        if (i == a->getArgNo()) {
+                            lastVal = fi;
+                            break;
+                        }
+                    }
+                }
                 else {
 					DEBUG(errs() << std::string(2*indent, ' '));
                     DEBUG(errs() << "This is a " << *v->getType() << "\n");
@@ -1163,6 +1179,13 @@ namespace {
         else {
             DEBUG(errs() << "Problem inserting function " << FuncToGenerate << "\n");
             exit(-1);
+        }
+        
+        Function::arg_iterator fi, fe, gi, ge;
+        for (fi = forward->arg_begin(), fe = forward->arg_end(),
+             gi = reverse->arg_begin(), ge = reverse->arg_end(); fi != fe;
+             ++fi, ++gi) {
+            gi->setName(fi->getName());
         }
         
         return reverse;
@@ -1341,7 +1364,8 @@ namespace {
                         if (AllocaInst *a = dyn_cast<AllocaInst>(mdr.getInst())) {
                             /// We have a local variable that we're storing into
                             /// Add an AllocaInst and update the mappings for lookup()
-#error Fix this!
+                            inv.visitAllocaInst(*a);
+                            inv.visitStoreInst(*b);
                         }
                         else {
                             stores.push(b);
