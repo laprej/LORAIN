@@ -3,7 +3,7 @@
 
 extern "C" {
     void undo_test_assign_struct_args(struct test_assign_struct_args *t);
-    void test_assign_struct_args(struct test_assign_struct_args *t)
+    void test_assign_struct_args(struct test_assign_struct_args *t);
 }
 
 TEST_CASE("simple/assignment in struct in args", "A destructive assignment")
