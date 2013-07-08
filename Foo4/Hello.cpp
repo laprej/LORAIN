@@ -710,7 +710,7 @@ namespace {
 			
 			int count = 0;
 			
-            std::vector<BasicBlock *> bbv;
+            std::vector<BasicBlock *> Preds;
             
             // bb is the original basic block to be reversed
 			BasicBlock *bb = I.getParent();
@@ -718,9 +718,7 @@ namespace {
             for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
                 BasicBlock *Pred = *PI;
                 DEBUG(errs() << "Inverter: pred of " << bb->getName() << ": " << Pred->getName() << "\n");
-                
-                bbv.push_back(Pred);
-                
+                Preds.push_back(Pred);
                 count++;
             }
             
@@ -788,16 +786,16 @@ namespace {
                 /// Store back the bitfield
                 Value *llllll = builder.CreateStore(lllll, l);
                 
-                if (isTrueAncestor(bb, bbv[0])) {
-                    // Nothing is necessary, our bbv array is in correct order
+                if (isTrueAncestor(bb, Preds[0])) {
+                    // Nothing is necessary, our Preds array is in correct order
                 }
                 else {
-                    BasicBlock *temp = bbv[0];
-                    bbv[0] = bbv[1];
-                    bbv[1] = temp;
+                    BasicBlock *temp = Preds[0];
+                    Preds[0] = Preds[1];
+                    Preds[1] = temp;
                 }
 				
-				BasicBlock *thenBB = bbmOldToNew[bbv[0]], *elBB = bbmOldToNew[bbv[1]];
+				BasicBlock *thenBB = bbmOldToNew[Preds[0]], *elBB = bbmOldToNew[Preds[1]];
 				
 				assert(thenBB);
 				assert(elBB);
