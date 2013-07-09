@@ -1240,8 +1240,7 @@ namespace {
         }
         
         Type *Ty = IntegerType::get(getGlobalContext(), 32);
-        std::string Name("backwards_switch");
-        Name += "_";
+        std::string Name("backwards_switch_");
         Name += successor->getName();
         Constant *C = M.getOrInsertGlobal(Name.c_str(), Ty);
         errs() << "Creating " << Name << "\n";
