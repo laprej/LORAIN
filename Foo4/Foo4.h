@@ -129,7 +129,7 @@ namespace {
         
 		virtual void getAnalysisUsage(AnalysisUsage &Info) const;
 		
-		//virtual bool
+		void splitUpEdges(BasicBlock *successor, std::vector<BasicBlock *> &Preds, Module &M);
 		
         virtual bool runOnModule(Module &M);
     };

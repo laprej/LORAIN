@@ -1229,6 +1229,45 @@ namespace {
         Info.addRequired<LoopInfo>();
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
+    
+    /// Add blocks in between the predecessors and successor block
+    /// so we can add a var assignment to help the switch later
+    void Hello::splitUpEdges(BasicBlock *successor, std::vector<BasicBlock *> &Preds, Module &M)
+    {
+        if (Preds.size() < 3) {
+            // No need to do anything.  We can handle this.
+            return;
+        }
+        
+        Type *Ty = IntegerType::get(getGlobalContext(), 32);
+        std::string Name("backwards_switch");
+        Name += "_";
+        Name += successor->getName();
+        Constant *C = M.getOrInsertGlobal(Name.c_str(), Ty);
+        errs() << "Creating " << Name << "\n";
+        assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
+        GlobalVariable *GV = cast<GlobalVariable>(C);
+        
+        // If it has an initializer, it is already in the module.
+        if (GV->hasInitializer()) {
+            assert(0 && "Re-creating existing variable!");
+        }
+        
+        GV->setLinkage(GlobalValue::LinkOnceAnyLinkage);
+        GV->setConstant(false);
+        
+        IRBuilder<> temp(getGlobalContext());
+        GV->setInitializer(temp.getInt32(0));
+        
+        errs() << "Splitting edges.\n";
+        int i;
+        std::vector<BasicBlock *>::iterator it, end;
+        for (i = 1, it = Preds.begin(), end = Preds.end(); it != end; ++it, i*=2) {
+            BasicBlock *b = SplitEdge(*it, successor, this);
+            temp.SetInsertPoint(b->getTerminator());
+            temp.CreateStore(temp.getInt32(i), GV);
+        }
+    }
 
     bool Hello::runOnModule(Module &M) {
         if (Function *ForwardFunc = M.getFunction(FuncToInstrument)) {
@@ -1249,6 +1288,16 @@ namespace {
                     }
                     bb->setName("bb");
                 }
+            }
+            
+            for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
+                BasicBlock *bb = fi;
+                std::vector<BasicBlock *> Preds;
+                pred_iterator PI, PEND;
+                for (PI = pred_begin(bb), PEND = pred_end(bb); PI != PEND; ++PI) {
+                    Preds.push_back(*PI);
+                }
+                splitUpEdges(bb, Preds, M);
             }
             
             Instrumenter instrumenter(M, this);
