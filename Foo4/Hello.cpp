@@ -184,6 +184,7 @@ namespace {
         
         void throwOutPred(SmallVector<BasicBlock *, 4> &Preds)
         {
+            errs() << "HEY WE'RE TOSSING A PRED!\N";
             assert(Preds.size() < 4 && "Don't yet support arb. size preds!");
             
             if (h->findDom(Preds[0]) == h->findDom(Preds[1])) {
@@ -444,10 +445,10 @@ namespace {
                 return;
             }
             
-            // Throw out one of the preds
-            if (Preds.size() > 2) {
-                throwOutPred(Preds);
-            }
+//            // Throw out one of the preds
+//            if (Preds.size() > 2) {
+//                throwOutPred(Preds);
+//            }
             
             DEBUG(errs() << "Instrumenter: We have " << Preds.size() << " predecessors\n");
             
@@ -704,6 +705,19 @@ namespace {
 			lastVal = 0;
         }
         
+        BasicBlock *createUnreachable()
+        {
+            static BasicBlock *ret = 0;
+            if (!ret) {
+                ret = BasicBlock::Create(getGlobalContext());
+                IRBuilder<> temp(getGlobalContext());
+                temp.SetInsertPoint(ret);
+                temp.CreateUnreachable();
+            }
+            
+            return ret;
+        }
+        
 		void visitTerminatorInst(TerminatorInst &I) {
 			DEBUG(errs() << "\n\n\nInverter: TERMINATOR INSTRUCTION\n");
             DEBUG(errs() << "Inverter: For " << I.getParent()->getName() << "\n");
@@ -720,6 +734,31 @@ namespace {
                 DEBUG(errs() << "Inverter: pred of " << bb->getName() << ": " << Pred->getName() << "\n");
                 Preds.push_back(Pred);
                 count++;
+            }
+            
+            if (count >= 3) {
+                // We have a lot of predecessors.  We're going to need a switch
+#warning We need to finish this
+                // Load backward_switch_<BB label>
+                std::string globalName("backwards_switch_");
+                globalName += bb->getName();
+                Value *l = M.getOrInsertGlobal(globalName, Type::getInt32Ty(getGlobalContext()));
+                Value *load = builder.CreateLoad(l, globalName);
+                // Use that for switch
+                NamedMDNode *nmd = M.getOrInsertNamedMetadata(globalName);
+                assert(nmd->getNumOperands() && "No operands found in NamedMD");
+                MDNode *node = cast<MDNode>(nmd->getOperand(0));
+                assert(node->getNumOperands() && "No operands found in MDNode");
+                BlockAddress *bb = cast<BlockAddress>(node->getOperand(0));
+                BasicBlock *block = bb->getBasicBlock();
+                Value *switchInst = builder.CreateSwitch(load, createUnreachable());
+                for (unsigned i = 0; i < node->getNumOperands(); ++i) {
+                    bb = cast<BlockAddress>(node->getOperand(i));
+                    block = bb->getBasicBlock();
+                    ConstantInt *ci = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1 << i);
+                    cast<SwitchInst>(switchInst)->addCase(ci, block);
+                }
+                return;
             }
             
             assert(count < 3 && "Basic Blocks must have < 3 predecessors!\n");
@@ -1260,12 +1299,18 @@ namespace {
         
         errs() << "Splitting edges.\n";
         int i;
+        std::vector<Value *> blocks;
         std::vector<BasicBlock *>::iterator it, end;
         for (i = 1, it = Preds.begin(), end = Preds.end(); it != end; ++it, i*=2) {
             BasicBlock *b = SplitEdge(*it, successor, this);
+            blocks.push_back(BlockAddress::get(b));
             temp.SetInsertPoint(b->getTerminator());
             temp.CreateStore(temp.getInt32(i), GV);
         }
+        
+        MDNode *switchPaths = MDNode::get(getGlobalContext(), blocks);
+        NamedMDNode *nmd = M.getOrInsertNamedMetadata(Name);
+        nmd->addOperand(switchPaths);
     }
 
     bool Hello::runOnModule(Module &M) {
@@ -1289,6 +1334,12 @@ namespace {
                 }
             }
             
+            Instrumenter instrumenter(M, this);
+            for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
+                instrumenter.visit(&*I);
+            
+            /// Now that we're done mucking with our forward event handler, we
+            /// can safely check for basic blocks with 3 or more predecessors
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 BasicBlock *bb = fi;
                 std::vector<BasicBlock *> Preds;
@@ -1298,10 +1349,6 @@ namespace {
                 }
                 splitUpEdges(bb, Preds, M);
             }
-            
-            Instrumenter instrumenter(M, this);
-            for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
-                instrumenter.visit(&*I);
             
             DEBUG(errs() << "Found " << FuncToInstrument << "\n");
             
