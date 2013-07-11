@@ -184,13 +184,8 @@ namespace {
         
         /// Add blocks in between the predecessors and successor block
         /// so we can add a var assignment to help the switch later
-        void splitUpEdges(BasicBlock *successor, std::vector<BasicBlock *> &Preds, Module &M)
+        void splitUpEdges(BasicBlock *successor, Module &M)
         {
-            if (Preds.size() < 3) {
-                // No need to do anything.  We can handle this.
-                return;
-            }
-            
             Type *Ty = IntegerType::get(getGlobalContext(), 32);
             std::string Name("backwards_switch_");
             Name += successor->getName();
@@ -213,9 +208,9 @@ namespace {
             errs() << "Splitting edges.\n";
             int i;
             std::vector<Value *> blocks;
-            std::vector<BasicBlock *>::iterator it, end;
-            for (i = 1, it = Preds.begin(), end = Preds.end(); it != end; ++it, i*=2) {
-                BasicBlock *b = llvm::SplitEdge(*it, successor, h);
+            pred_iterator pi, pe;
+            for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, i*=2) {
+                BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
                 blocks.push_back(BlockAddress::get(b));
                 temp.SetInsertPoint(b->getTerminator());
                 Value *store = temp.CreateStore(temp.getInt32(i), GV);
@@ -355,59 +350,6 @@ namespace {
              */
             DEBUG(errs() << "Instrumenter: COMPARE INSTRUCTION\n");
 			
-#if 0
-			{
-				if (I.getMetadata("jml")) {
-					return;
-				}
-				
-				/* Instruction *pi = ...;
-				 Instruction *newInst = new Instruction(...);
-				 
-				 pi->getParent()->getInstList().insert(pi, newInst); */
-				
-				Instruction *pi = &I;
-				Instruction *newInst = I.clone();
-				
-				/*
-				 This is from http://llvm.org/docs/SourceLevelDebugging.html
-				 
-				 if (MDNode *N = I->getMetadata("dbg")) {  // Here I is an LLVM instruction
-				 DILocation Loc(N);                      // DILocation is in DebugInfo.h
-				 unsigned Line = Loc.getLineNumber();
-				 StringRef File = Loc.getFilename();
-				 StringRef Dir = Loc.getDirectory();
-				 }
-				 */
-				
-				/// See DIBuilder.cpp for more examples
-				Value *Elts[] = {
-					//MDString::get(getGlobalContext(), "jml.new.var"),
-					ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
-					ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
-					llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
-					ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0),
-					llvm::Constant::getNullValue(Type::getInt32Ty(getGlobalContext())),
-				};
-				
-				MDNode *Node = MDNode::get(getGlobalContext(), 0);
-				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
-				//NMD->addOperand(Node);
-				
-				newInst->setMetadata("jml", Node);
-				
-				if (newInst->hasMetadata()) {
-					errs() << "has metadata\n";
-				}
-				else {
-					errs() << "does not have metadata\n";
-				}
-				if (MDNode *N = newInst->getMetadata("jml")) {
-					errs() << "We found JML\n";
-				}
-				pi->getParent()->getInstList().insertAfter(pi, newInst);
-			}
-#endif
             Function *ForwardFunc = M.getFunction(FuncToInstrument);
             LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
             /// Handle CmpInsts inside of loops a little differently...
@@ -416,88 +358,88 @@ namespace {
                 // early exit from this function
                 return;
             }
-			
-            // We are creating a dangerous coupling here between our metadata
-            // necessary for marking a cmp instruction and our bitfield count.
-            // We'll have to revisit this if it becomes a problem
-			markJML(&I);
-			
-			BasicBlock::iterator it(I);
-			++it;
-			IRBuilder<> b(it);
-			
-			/// Manually emit the load, add, store for this
-			/// Don't forget to tag all this JML!
-			//const Type *newGlobal = IntegerType::get(I.getContext(), 32);
-			//Value *l = M.getOrInsertGlobal("bf", newGlobal);
-            
-            StringRef bf = newBitFieldName("bf");
-			
-			Value *l = insertBitField(bf);
-			markJML(l);
-			
-			Value *ll = b.CreateLoad(l);
-			markJML(ll);
-			
-			DEBUG(errs() << "Instrumenter: ll has type: " << *ll->getType() << "\n");
-			DEBUG(errs() << "Instrumenter: I has type: " << *I.getType() << "\n");
-			
-			Value *lll = b.CreateCast(Instruction::Trunc, ll, I.getType());
-			markJML(lll);
-			
-			DEBUG(errs() << "Instrumenter: lll has type: " << *lll->getType() << "\n");
-			
-			Value *v = b.CreateNUWAdd(lll, &I);
-			markJML(v);
-			
-			DEBUG(errs() << "Instrumenter: got here...\n");
-			
-			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
-			markJML(llll);
-			
-			DEBUG(errs() << "Instrumenter: llll has type: " << *llll->getType() << "\n");
-			
-			markJML(b.CreateStore(llll, l));
-			
-			
-			DEBUG(errs() << "Instrumenter: Here, too!\n");
-            
-            
-            
-            //////////////// BIG CHANGE HERE //////////////////////
-            /// Create a diamond!  Unfortunately llvm will not generate
-            /// a merge point with just two preds (it just adds more on)
-            /// so we'll need to add another BB after the merge
-            BasicBlock *bb = h->postdomTreeLookup(I.getParent());
-            
-            DEBUG(errs() << "Instrumenter: PostDom of " << I.getParent()->getName()
-                  << " is " << bb->getName() << "\n");
-            
-            int pcount = 0;
-            
-            SmallVector<BasicBlock *, 4> Preds;
-            
-            // Count predecessors
-            for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
-                BasicBlock *Pred = *PI;
-                DEBUG(errs() << "Instrumenter: pred[" << pcount << "] is " << Pred->getName() << "\n");
-                Preds.push_back(Pred);
-                pcount++;
-                // ...
-            }
-            
-            if (pcount < 3) {
-                return;
-            }
-            
-//            // Throw out one of the preds
-//            if (Preds.size() > 2) {
-//                throwOutPred(Preds);
+//			
+//            // We are creating a dangerous coupling here between our metadata
+//            // necessary for marking a cmp instruction and our bitfield count.
+//            // We'll have to revisit this if it becomes a problem
+//			markJML(&I);
+//			
+//			BasicBlock::iterator it(I);
+//			++it;
+//			IRBuilder<> b(it);
+//			
+//			/// Manually emit the load, add, store for this
+//			/// Don't forget to tag all this JML!
+//			//const Type *newGlobal = IntegerType::get(I.getContext(), 32);
+//			//Value *l = M.getOrInsertGlobal("bf", newGlobal);
+//            
+//            StringRef bf = newBitFieldName("bf");
+//			
+//			Value *l = insertBitField(bf);
+//			markJML(l);
+//			
+//			Value *ll = b.CreateLoad(l);
+//			markJML(ll);
+//			
+//			DEBUG(errs() << "Instrumenter: ll has type: " << *ll->getType() << "\n");
+//			DEBUG(errs() << "Instrumenter: I has type: " << *I.getType() << "\n");
+//			
+//			Value *lll = b.CreateCast(Instruction::Trunc, ll, I.getType());
+//			markJML(lll);
+//			
+//			DEBUG(errs() << "Instrumenter: lll has type: " << *lll->getType() << "\n");
+//			
+//			Value *v = b.CreateNUWAdd(lll, &I);
+//			markJML(v);
+//			
+//			DEBUG(errs() << "Instrumenter: got here...\n");
+//			
+//			Value *llll = b.CreateCast(Instruction::SExt, v, ll->getType());
+//			markJML(llll);
+//			
+//			DEBUG(errs() << "Instrumenter: llll has type: " << *llll->getType() << "\n");
+//			
+//			markJML(b.CreateStore(llll, l));
+//			
+//			
+//			DEBUG(errs() << "Instrumenter: Here, too!\n");
+//            
+//            
+//            
+//            //////////////// BIG CHANGE HERE //////////////////////
+//            /// Create a diamond!  Unfortunately llvm will not generate
+//            /// a merge point with just two preds (it just adds more on)
+//            /// so we'll need to add another BB after the merge
+//            BasicBlock *bb = h->postdomTreeLookup(I.getParent());
+//            
+//            DEBUG(errs() << "Instrumenter: PostDom of " << I.getParent()->getName()
+//                  << " is " << bb->getName() << "\n");
+//            
+//            int pcount = 0;
+//            
+//            SmallVector<BasicBlock *, 4> Preds;
+//            
+//            // Count predecessors
+//            for (pred_iterator PI = pred_begin(bb), E = pred_end(bb); PI != E; ++PI) {
+//                BasicBlock *Pred = *PI;
+//                DEBUG(errs() << "Instrumenter: pred[" << pcount << "] is " << Pred->getName() << "\n");
+//                Preds.push_back(Pred);
+//                pcount++;
+//                // ...
 //            }
-            
-            DEBUG(errs() << "Instrumenter: We have " << Preds.size() << " predecessors\n");
-            
-            //llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
+//            
+//            if (pcount < 3) {
+//                return;
+//            }
+//            
+////            // Throw out one of the preds
+////            if (Preds.size() > 2) {
+////                throwOutPred(Preds);
+////            }
+//            
+//            DEBUG(errs() << "Instrumenter: We have " << Preds.size() << " predecessors\n");
+//            
+//            //llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
 		}
 
         void visitStoreInst(StoreInst &I) {
@@ -588,19 +530,19 @@ namespace {
 			DEBUG(errs() << "Inverter: MAP END\n");
 		}
         
-        MDNode * findDiamondBf(Instruction &I)
-        {
-            DEBUG(errs() << "Inverter: findDiamondBf(" << I << "): ");
-            MDNode * md = h->domTreeLookup(I);
-            if (md) {
-                DEBUG(errs() << *md << "\n\n");
-            }
-            else {
-                DEBUG(errs() << "NULL\n\n");
-            }
-            
-            return md;
-        }
+//        MDNode * findDiamondBf(Instruction &I)
+//        {
+//            DEBUG(errs() << "Inverter: findDiamondBf(" << I << "): ");
+//            MDNode * md = h->domTreeLookup(I);
+//            if (md) {
+//                DEBUG(errs() << *md << "\n\n");
+//            }
+//            else {
+//                DEBUG(errs() << "NULL\n\n");
+//            }
+//            
+//            return md;
+//        }
         
         /// Starting at start, can we arrive at target?
         /// We may need to revisit this when loop support is added
@@ -781,7 +723,7 @@ namespace {
                 count++;
             }
             
-            if (count >= 3) {
+            if (count >= 2) {
                 // We have a lot of predecessors.  We're going to need a switch
 #warning We need to finish this
                 // Load backward_switch_<BB label>
@@ -827,7 +769,9 @@ namespace {
                 errs() << "single predecessor: " << *v << "\n";
 				return;
 			}
+            return;
 			
+#if 0
             Function *f = bb->getParent();
             LoopInfo *LI = h->getLoopInfo(*f);
             /// Standard ``if'' statement
@@ -942,6 +886,7 @@ namespace {
             }
 			
 			assert(0 && "Unhandled terminator instruction!\n");
+#endif
 		}
 		
 		void visitAllocaInst(AllocaInst &I) {
@@ -1337,20 +1282,42 @@ namespace {
             
             Instrumenter instrumenter(M, this);
             
-            /// Now that we're done mucking with our forward event handler, we
-            /// can safely check for basic blocks with 3 or more predecessors
+            std::set<BasicBlock *> workList;
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 BasicBlock *bb = fi;
                 std::vector<BasicBlock *> Preds;
-                pred_iterator PI, PEND;
-                for (PI = pred_begin(bb), PEND = pred_end(bb); PI != PEND; ++PI) {
+                for (pred_iterator PI = pred_begin(bb), PEND = pred_end(bb);
+                     PI != PEND; ++PI) {
                     Preds.push_back(*PI);
                 }
-                instrumenter.splitUpEdges(bb, Preds, M);
+                if (Preds.size() >= 2) {
+                    workList.insert(bb);
+                }
+                //instrumenter.splitUpEdges(bb, Preds, M);
+            }
+            
+            for (std::set<BasicBlock*>::iterator wi = workList.begin(),
+                 we = workList.end(); wi != we; ++wi) {
+                BasicBlock *b = *wi;
+                std::vector<BasicBlock *> Preds;
+                for (pred_iterator PI = pred_begin(b), PEND = pred_end(b);
+                     PI != PEND; ++PI) {
+                    Preds.push_back(b);
+                }
+                instrumenter.splitUpEdges(b, M);
             }
 
-            for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
+            for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I) {
+                // Needed here due to Select approach which may have added
+                // metadata already...
+                if (MDNode *N = I->getMetadata("jml")) {
+                    Atadatem md(N);
+                    if (md.isSkip()) {
+                        continue;
+                    }
+                }
                 instrumenter.visit(&*I);
+            }
             
             DEBUG(errs() << "Found " << FuncToInstrument << "\n");
             
