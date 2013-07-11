@@ -182,9 +182,54 @@ namespace {
             return ret;
 		}
         
+        /// Add blocks in between the predecessors and successor block
+        /// so we can add a var assignment to help the switch later
+        void splitUpEdges(BasicBlock *successor, std::vector<BasicBlock *> &Preds, Module &M)
+        {
+            if (Preds.size() < 3) {
+                // No need to do anything.  We can handle this.
+                return;
+            }
+            
+            Type *Ty = IntegerType::get(getGlobalContext(), 32);
+            std::string Name("backwards_switch_");
+            Name += successor->getName();
+            Constant *C = M.getOrInsertGlobal(Name.c_str(), Ty);
+            errs() << "Creating " << Name << "\n";
+            assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
+            GlobalVariable *GV = cast<GlobalVariable>(C);
+            
+            // If it has an initializer, it is already in the module.
+            if (GV->hasInitializer()) {
+                assert(0 && "Re-creating existing variable!");
+            }
+            
+            GV->setLinkage(GlobalValue::LinkOnceAnyLinkage);
+            GV->setConstant(false);
+            
+            IRBuilder<> temp(getGlobalContext());
+            GV->setInitializer(temp.getInt32(0));
+            
+            errs() << "Splitting edges.\n";
+            int i;
+            std::vector<Value *> blocks;
+            std::vector<BasicBlock *>::iterator it, end;
+            for (i = 1, it = Preds.begin(), end = Preds.end(); it != end; ++it, i*=2) {
+                BasicBlock *b = llvm::SplitEdge(*it, successor, h);
+                blocks.push_back(BlockAddress::get(b));
+                temp.SetInsertPoint(b->getTerminator());
+                Value *store = temp.CreateStore(temp.getInt32(i), GV);
+                markJML(store);
+            }
+            
+            MDNode *switchPaths = MDNode::get(getGlobalContext(), blocks);
+            NamedMDNode *nmd = M.getOrInsertNamedMetadata(Name);
+            nmd->addOperand(switchPaths);
+        }
+        
         void throwOutPred(SmallVector<BasicBlock *, 4> &Preds)
         {
-            errs() << "HEY WE'RE TOSSING A PRED!\N";
+            errs() << "HEY WE'RE TOSSING A PRED!\n";
             assert(Preds.size() < 4 && "Don't yet support arb. size preds!");
             
             if (h->findDom(Preds[0]) == h->findDom(Preds[1])) {
@@ -452,7 +497,7 @@ namespace {
             
             DEBUG(errs() << "Instrumenter: We have " << Preds.size() << " predecessors\n");
             
-            llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
+            //llvm::SplitBlockPredecessors(bb, Preds, "_diamond");
 		}
 
         void visitStoreInst(StoreInst &I) {
@@ -1268,50 +1313,6 @@ namespace {
         Info.addRequired<LoopInfo>();
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
-    
-    /// Add blocks in between the predecessors and successor block
-    /// so we can add a var assignment to help the switch later
-    void Hello::splitUpEdges(BasicBlock *successor, std::vector<BasicBlock *> &Preds, Module &M)
-    {
-        if (Preds.size() < 3) {
-            // No need to do anything.  We can handle this.
-            return;
-        }
-        
-        Type *Ty = IntegerType::get(getGlobalContext(), 32);
-        std::string Name("backwards_switch_");
-        Name += successor->getName();
-        Constant *C = M.getOrInsertGlobal(Name.c_str(), Ty);
-        errs() << "Creating " << Name << "\n";
-        assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
-        GlobalVariable *GV = cast<GlobalVariable>(C);
-        
-        // If it has an initializer, it is already in the module.
-        if (GV->hasInitializer()) {
-            assert(0 && "Re-creating existing variable!");
-        }
-        
-        GV->setLinkage(GlobalValue::LinkOnceAnyLinkage);
-        GV->setConstant(false);
-        
-        IRBuilder<> temp(getGlobalContext());
-        GV->setInitializer(temp.getInt32(0));
-        
-        errs() << "Splitting edges.\n";
-        int i;
-        std::vector<Value *> blocks;
-        std::vector<BasicBlock *>::iterator it, end;
-        for (i = 1, it = Preds.begin(), end = Preds.end(); it != end; ++it, i*=2) {
-            BasicBlock *b = SplitEdge(*it, successor, this);
-            blocks.push_back(BlockAddress::get(b));
-            temp.SetInsertPoint(b->getTerminator());
-            temp.CreateStore(temp.getInt32(i), GV);
-        }
-        
-        MDNode *switchPaths = MDNode::get(getGlobalContext(), blocks);
-        NamedMDNode *nmd = M.getOrInsertNamedMetadata(Name);
-        nmd->addOperand(switchPaths);
-    }
 
     bool Hello::runOnModule(Module &M) {
         if (Function *ForwardFunc = M.getFunction(FuncToInstrument)) {
@@ -1335,8 +1336,6 @@ namespace {
             }
             
             Instrumenter instrumenter(M, this);
-            for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
-                instrumenter.visit(&*I);
             
             /// Now that we're done mucking with our forward event handler, we
             /// can safely check for basic blocks with 3 or more predecessors
@@ -1347,8 +1346,11 @@ namespace {
                 for (PI = pred_begin(bb), PEND = pred_end(bb); PI != PEND; ++PI) {
                     Preds.push_back(*PI);
                 }
-                splitUpEdges(bb, Preds, M);
+                instrumenter.splitUpEdges(bb, Preds, M);
             }
+
+            for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I)
+                instrumenter.visit(&*I);
             
             DEBUG(errs() << "Found " << FuncToInstrument << "\n");
             
