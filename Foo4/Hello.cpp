@@ -223,25 +223,6 @@ namespace {
             nmd->addOperand(switchPaths);
         }
         
-        void throwOutPred(SmallVector<BasicBlock *, 4> &Preds)
-        {
-            errs() << "HEY WE'RE TOSSING A PRED!\n";
-            assert(Preds.size() < 4 && "Don't yet support arb. size preds!");
-            
-            if (h->findDom(Preds[0]) == h->findDom(Preds[1])) {
-                Preds.erase(&Preds[2]);
-                return;
-            }
-            if (h->findDom(Preds[0]) == h->findDom(Preds[2])) {
-                Preds.erase(&Preds[1]);
-                return;
-            }
-            if (h->findDom(Preds[1]) == h->findDom(Preds[2])) {
-                Preds.erase(&Preds[0]);
-                return;
-            }
-        }
-        
         StringRef insertCounter(BasicBlock *bb)
         {
             // Load
@@ -723,7 +704,7 @@ namespace {
             }
             
             if (count >= 2) {
-                // We have a lot of predecessors.  We're going to need a switch
+                // We have multiple predecessors. We're going to need a switch
 #warning We need to finish this
                 // Load backward_switch_<BB label>
                 std::string globalName("backwards_switch_");

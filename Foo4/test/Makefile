@@ -1,5 +1,5 @@
 SRCS = test-add.c test-add2.c test-sub.c test-sub2.c test-mul.c test-mul2.c \
-test-if.c test-if2.c test-if3.c test-if-else.c test-while.c test-while2.c   \
+test-if.c test-if2.c test-if3.c test-if-else.c test-while.c # test-while2.c   \
 test-for.c test-array.c test-random.c test-ptr.c test-struct.c test-assign.c \
 test-assign-in-struct.c test-assign-struct-args.c
 REV_OBJS = ${SRCS:.c=-output.o}
