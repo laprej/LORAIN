@@ -186,6 +186,12 @@ namespace {
         /// so we can add a var assignment to help the switch later
         void splitUpEdges(BasicBlock *successor, Module &M)
         {
+            Function *ForwardFunc = M.getFunction(FuncToInstrument);
+            LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
+            // If we're in a loop, don't do this.
+            if (LI->getLoopDepth(successor)) {
+                return;
+            }
             errs() << "splitUpEdges(S=" << successor->getName() << ")\n";
             Type *Ty = IntegerType::get(getGlobalContext(), 32);
             std::string Name("backwards_switch_");
@@ -703,16 +709,70 @@ namespace {
                 count++;
             }
             
+            Function *f = bb->getParent();
+            LoopInfo *LI = h->getLoopInfo(*f);
+            
+            /// Standard loop construct
+            if (count == 2 && LI->getLoopDepth(bb)) {
+                /// 1. Get the loop header
+                BasicBlock *header = LI->getLoopFor(bb)->getHeader();
+                assert(header == I.getParent());
+                /// 2. Find the reverse analog to 1
+                BasicBlock *analogHeader = bbmOldToNew[header];
+                /// 3. Insert instructions to load and decrement the ctr var.
+                MDNode *md = header->getTerminator()->getMetadata("jml.icmp.loop");
+                assert(md && "Loop metadata not found!");
+                BlockAddress *parent = dyn_cast<BlockAddress>(md->getOperand(0));
+                assert(parent && "Parent not found!");
+                //errs() << parent->getString() << "\n";
+                BlockAddress *body = dyn_cast<BlockAddress>(md->getOperand(1));
+                assert(body && "Body not found!");
+                //errs() << body->getString() << "\n";
+                MDString *ctrNum = dyn_cast<MDString>(md->getOperand(2));
+                DEBUG(errs() << "ctrNum is " << *ctrNum << "\n");
+                DEBUG(errs() << "LOOP HEADER\n\n");
+                DEBUG(header->dump());
+                DEBUG(errs() << "\nANALOG HEADER\n\n");
+                DEBUG(analogHeader->dump());
+                DEBUG(errs() << "\n");
+                
+                Type *newGlobal = IntegerType::get(I.getContext(), 32);
+                //Twine bfX("bf");
+                //bfX = bfX.concat(Twine(bfn->getZExtValue()));
+                //DEBUG(errs() << "Inverter: bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n");
+                //DEBUG(errs() << "Inverter: and bfX is " << bfX << "\n");
+				Value *l = M.getOrInsertGlobal(ctrNum->getString(), newGlobal);
+                
+                Value *ll = builder.CreateLoad(l);
+                
+                //Value *lll = builder.CreateSub(ll, builder.getInt32(1));
+                
+                //Value *llll = builder.CreateStore(lll, l);
+                
+                Value *lllll = builder.CreateICmpSGT(ll, builder.getInt32(0));
+                
+                /// 4. Depending on 3, loop or exit loop
+                /// WATCH RIGHT HERE I'M GOING TO CHEAT
+                
+                //BasicBlock *newBody = bbmOldToNew[body->getBasicBlock()];
+                BasicBlock *latch = LI->getLoopFor(bb)->getLoopLatch();
+                BasicBlock *newBody = bbmOldToNew[latch];
+                BasicBlock *newParent = bbmOldToNew[parent->getBasicBlock()];
+                builder.CreateCondBr(lllll, newBody, newParent);
+                
+                return;
+            }
+            
             if (count >= 2) {
                 // We have multiple predecessors. We're going to need a switch
-#warning We need to finish this
                 // Load backward_switch_<BB label>
                 std::string globalName("backwards_switch_");
                 globalName += bb->getName();
                 Value *l = M.getOrInsertGlobal(globalName, Type::getInt32Ty(getGlobalContext()));
                 Value *load = builder.CreateLoad(l, globalName);
                 // Use that for switch
-                NamedMDNode *nmd = M.getOrInsertNamedMetadata(globalName);
+                //NamedMDNode *nmd = M.getOrInsertNamedMetadata(globalName);
+                NamedMDNode *nmd = M.getNamedMetadata(globalName);
                 assert(nmd->getNumOperands() && "No operands found in NamedMD");
                 MDNode *node = cast<MDNode>(nmd->getOperand(0));
                 assert(node->getNumOperands() && "No operands found in MDNode");
@@ -753,8 +813,6 @@ namespace {
             return;
 			
 #if 0
-            Function *f = bb->getParent();
-            LoopInfo *LI = h->getLoopInfo(*f);
             /// Standard ``if'' statement
 			if (count == 2 && !(LI->getLoopDepth(bb))) {
                 MDNode *md = findDiamondBf(I);
@@ -815,56 +873,7 @@ namespace {
                 return;
 			}
             
-            /// Standard loop construct
-            if (count == 2 && LI->getLoopDepth(bb)) {
-                /// 1. Get the loop header
-                BasicBlock *header = LI->getLoopFor(bb)->getHeader();
-                assert(header == I.getParent());
-                /// 2. Find the reverse analog to 1
-                BasicBlock *analogHeader = bbmOldToNew[header];
-                /// 3. Insert instructions to load and decrement the ctr var.
-                MDNode *md = header->getTerminator()->getMetadata("jml.icmp.loop");
-                assert(md && "Loop metadata not found!");
-                BlockAddress *parent = dyn_cast<BlockAddress>(md->getOperand(0));
-                assert(parent && "Parent not found!");
-                //errs() << parent->getString() << "\n";
-                BlockAddress *body = dyn_cast<BlockAddress>(md->getOperand(1));
-                assert(body && "Body not found!");
-                //errs() << body->getString() << "\n";
-                MDString *ctrNum = dyn_cast<MDString>(md->getOperand(2));
-                DEBUG(errs() << "ctrNum is " << *ctrNum << "\n");
-                DEBUG(errs() << "LOOP HEADER\n\n");
-                DEBUG(header->dump());
-                DEBUG(errs() << "\nANALOG HEADER\n\n");
-                DEBUG(analogHeader->dump());
-                DEBUG(errs() << "\n");
-                
-                Type *newGlobal = IntegerType::get(I.getContext(), 32);
-                //Twine bfX("bf");
-                //bfX = bfX.concat(Twine(bfn->getZExtValue()));
-                //DEBUG(errs() << "Inverter: bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n");
-                //DEBUG(errs() << "Inverter: and bfX is " << bfX << "\n");
-				Value *l = M.getOrInsertGlobal(ctrNum->getString(), newGlobal);
-                
-                Value *ll = builder.CreateLoad(l);
-                
-                //Value *lll = builder.CreateSub(ll, builder.getInt32(1));
-                
-                //Value *llll = builder.CreateStore(lll, l);
-                
-                Value *lllll = builder.CreateICmpSGT(ll, builder.getInt32(0));
-                
-                /// 4. Depending on 3, loop or exit loop
-                /// WATCH RIGHT HERE I'M GOING TO CHEAT
-                
-                //BasicBlock *newBody = bbmOldToNew[body->getBasicBlock()];
-                BasicBlock *latch = LI->getLoopFor(bb)->getLoopLatch();
-                BasicBlock *newBody = bbmOldToNew[latch];
-                BasicBlock *newParent = bbmOldToNew[parent->getBasicBlock()];
-                builder.CreateCondBr(lllll, newBody, newParent);
 
-                return;
-            }
 			
 			assert(0 && "Unhandled terminator instruction!\n");
 #endif
