@@ -788,8 +788,6 @@ namespace {
                 }
                 return;
             }
-            
-            assert(count < 3 && "Basic Blocks must have < 3 predecessors!\n");
 			
             // foo is the generated "inverse" basic block
 			BasicBlock *foo = builder.GetInsertBlock();
@@ -810,73 +808,8 @@ namespace {
                 errs() << "single predecessor: " << *v << "\n";
 				return;
 			}
-            return;
-			
-#if 0
-            /// Standard ``if'' statement
-			if (count == 2 && !(LI->getLoopDepth(bb))) {
-                MDNode *md = findDiamondBf(I);
-				
-                DEBUG(errs() << "Inverter: " << md->getName() << " has " << md->getNumOperands() << " operands\n");
-                ConstantInt *bfn = dyn_cast<ConstantInt>(md->getOperand(0));
-                assert(bfn);
-				/// We have two predecessors; we're going to need an "if"
-				DEBUG(errs() << "Inverter: WE NEED A BRANCH\n");
-				/// Emit a load of bf, compare, and jump to appropriate BBs
-				
-				/// CURRENTLY WORKING ON THIS
-				/// Manually emit the load & cmp the bf
-				/// Don't forget to tag all this JML!
-                Type *newGlobal = IntegerType::get(I.getContext(), 32);
-                Twine bfX("bf");
-                bfX = bfX.concat(Twine(bfn->getZExtValue()));
-                DEBUG(errs() << "Inverter: bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n");
-                DEBUG(errs() << "Inverter: and bfX is " << bfX << "\n");
-				Value *l = M.getOrInsertGlobal(bfX.str(), newGlobal);
-				//markJML(l);
-				
-				Value *ll = builder.CreateLoad(l);
-				//markJML(ll);
-				
-				DEBUG(errs() << "Inverter: ll has type: " << *ll->getType() << "\n");
-				DEBUG(errs() << "Inverter: I has type: " << *I.getType() << "\n");
-				
-				Value *lll = builder.CreateCast(Instruction::Trunc, ll, IntegerType::get(I.getContext(), 1));
-				//markJML(lll);
-				
-				DEBUG(errs() << "Inverter: lll has type: " << *lll->getType() << "\n");
-				
-				Value *llll = builder.CreateICmpEQ(lll, builder.getInt1(true));
-                
-                /// Reset the bitfield
-                Value *lllll = builder.CreateSub(ll, ll);
-                /// Store back the bitfield
-                Value *llllll = builder.CreateStore(lllll, l);
-                
-                if (isTrueAncestor(bb, Preds[0])) {
-                    // Nothing is necessary, our Preds array is in correct order
-                }
-                else {
-                    BasicBlock *temp = Preds[0];
-                    Preds[0] = Preds[1];
-                    Preds[1] = temp;
-                }
-				
-				BasicBlock *thenBB = bbmOldToNew[Preds[0]], *elBB = bbmOldToNew[Preds[1]];
-				
-				assert(thenBB);
-				assert(elBB);
-				/// Create a branch instruction here that jumps to the bb names
-				/// stored in the metadata
-				builder.CreateCondBr(llll, thenBB, elBB);
-				
-                return;
-			}
-            
-
 			
 			assert(0 && "Unhandled terminator instruction!\n");
-#endif
 		}
 		
 		void visitAllocaInst(AllocaInst &I) {
