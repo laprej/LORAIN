@@ -186,11 +186,12 @@ namespace {
         /// so we can add a var assignment to help the switch later
         void splitUpEdges(BasicBlock *successor, Module &M)
         {
+            errs() << "splitUpEdges(S=" << successor->getName() << ")\n";
             Type *Ty = IntegerType::get(getGlobalContext(), 32);
             std::string Name("backwards_switch_");
             Name += successor->getName();
             Constant *C = M.getOrInsertGlobal(Name.c_str(), Ty);
-            errs() << "Creating " << Name << "\n";
+            errs() << "Creating " << Name << " metadata\n";
             assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
             GlobalVariable *GV = cast<GlobalVariable>(C);
             
@@ -694,13 +695,11 @@ namespace {
         
         BasicBlock *createUnreachable()
         {
-            static BasicBlock *ret = 0;
-            if (!ret) {
-                ret = BasicBlock::Create(getGlobalContext());
-                IRBuilder<> temp(getGlobalContext());
-                temp.SetInsertPoint(ret);
-                temp.CreateUnreachable();
-            }
+            Function *f = M.getFunction(FuncToGenerate);
+            BasicBlock *ret = BasicBlock::Create(getGlobalContext(), "", f);
+            IRBuilder<> temp(getGlobalContext());
+            temp.SetInsertPoint(ret);
+            temp.CreateUnreachable();
             
             return ret;
         }
@@ -742,6 +741,7 @@ namespace {
                 for (unsigned i = 0; i < node->getNumOperands(); ++i) {
                     bb = cast<BlockAddress>(node->getOperand(i));
                     block = bb->getBasicBlock();
+                    block = bbmOldToNew[block];
                     ConstantInt *ci = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1 << i);
                     cast<SwitchInst>(switchInst)->addCase(ci, block);
                 }
@@ -1298,13 +1298,7 @@ namespace {
             
             for (std::set<BasicBlock*>::iterator wi = workList.begin(),
                  we = workList.end(); wi != we; ++wi) {
-                BasicBlock *b = *wi;
-                std::vector<BasicBlock *> Preds;
-                for (pred_iterator PI = pred_begin(b), PEND = pred_end(b);
-                     PI != PEND; ++PI) {
-                    Preds.push_back(b);
-                }
-                instrumenter.splitUpEdges(b, M);
+                instrumenter.splitUpEdges(*wi, M);
             }
 
             for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I) {
