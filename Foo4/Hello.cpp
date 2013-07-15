@@ -436,20 +436,6 @@ namespace {
 			DEBUG(errs() << "Inverter: MAP END\n");
 		}
         
-//        MDNode * findDiamondBf(Instruction &I)
-//        {
-//            DEBUG(errs() << "Inverter: findDiamondBf(" << I << "): ");
-//            MDNode * md = h->domTreeLookup(I);
-//            if (md) {
-//                DEBUG(errs() << *md << "\n\n");
-//            }
-//            else {
-//                DEBUG(errs() << "NULL\n\n");
-//            }
-//            
-//            return md;
-//        }
-        
         /// Starting at start, can we arrive at target?
         /// We may need to revisit this when loop support is added
         bool bbDFS(BasicBlock *start, BasicBlock *target, int indent = 0)
@@ -478,29 +464,7 @@ namespace {
             
             return false;
         }
-        
-        /// bb1 is a basic block which terminates with a branch instruction.
-        /// find the "true" branch and then check if bb2 is a descendant
-        /// We may need to revisit this when loop support is added
-        bool isTrueAncestor(BasicBlock * ancestor, BasicBlock * descendant)
-        {
-            BasicBlock *dom = h->findDom(ancestor);
-            
-            // Now we have to find the BB for "true" in our br instruction
-            if (BranchInst *b = dyn_cast<BranchInst>(dom->getTerminator())) {
-                BasicBlock *then = b->getSuccessor(0);
-                if (bbDFS(then, descendant)) {
-                    return true;
-                }
-                else {
-                    return false;
-                }
-            }
-            else {
-                assert(0 && "Expecting a BranchInst from dominator!");
-            }
-        }
-        
+                
         void visitSExtInst(SExtInst &I)
         {
             DEBUG(errs() << "Inverter: SExtInst\n");
@@ -968,64 +932,6 @@ namespace {
         LoopInfo &LI = getAnalysis<LoopInfo>(f);
         
         return &LI;
-    }
-    
-    BasicBlock * Hello::findDom(BasicBlock *BB)
-    {
-        Function *f = BB->getParent();
-        DominatorTree &DT = getAnalysis<DominatorTree>(*f);
-        DomTreeNode *Rung = DT.getNode(BB);
-        Rung = Rung->getIDom();
-        //errs() << "Rung is " << Rung << "\n";
-        BasicBlock *bb = Rung->getBlock();
-        //errs() << "BB is " << *bb << "\n";
-        return bb;
-    }
-    
-    
-    /// Lookup our IDom (from a merge point) so we can find the correct
-    /// metadata to tell us where to go (BBs) and what to check (bitfields)
-    MDNode * Hello::domTreeLookup(Instruction &I)
-    {
-        Function *f = I.getParent()->getParent();
-        DominatorTree &DT = getAnalysis<DominatorTree>(*f);
-        DomTreeNode *Rung = DT.getNode(I.getParent());
-        Rung = Rung->getIDom();
-        errs() << "Rung is " << Rung << "\n";
-        BasicBlock *bb = Rung->getBlock();
-        errs() << "BB is " << bb->getName() << "\n";
-        
-        CmpInst *C = 0;
-        
-        // find the cmp
-        for (BasicBlock::iterator i = bb->begin(), e = bb->end(); i != e; ++i) {
-            if ((C = dyn_cast<CmpInst>(i))) {
-                errs() << *C << "\n";
-                break;
-            }
-        }
-        
-        DEBUG(I.getParent()->getParent()->dump());
-        
-        assert(C && "CmpInst not found!");
-        
-        MDNode *md = C->getMetadata("jml.icmp");
-        
-        assert(md && "No metadata found on CmpInst!");
-        
-        return md;
-    }
-    
-    BasicBlock * Hello::postdomTreeLookup(BasicBlock *BB)
-    {
-        Function *f = BB->getParent();
-        PostDominatorTree &DT = getAnalysis<PostDominatorTree>(*f);
-        DomTreeNode *Rung = DT.getNode(BB);
-        Rung = Rung->getIDom();
-        DEBUG(errs() << "PD Rung is " << Rung << "\n");
-        BasicBlock *bb = Rung->getBlock();
-        DEBUG(errs() << "PD BB is " << *bb << "\n");
-        return bb;
     }
     
     Function *Hello::createReverseFunction(Module &M)

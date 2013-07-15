@@ -95,12 +95,6 @@ namespace {
         
         LoopInfo * getLoopInfo(Function &f);
         
-        BasicBlock * findDom(BasicBlock *bb);
-        
-        MDNode * domTreeLookup(Instruction &I);
-        
-        BasicBlock * postdomTreeLookup(BasicBlock *bb);
-        
         BasicBlock *reverseBlock(BasicBlock *B);
         
         Function *createReverseFunction(Module &M);
