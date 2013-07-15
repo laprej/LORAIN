@@ -435,35 +435,6 @@ namespace {
 			}
 			DEBUG(errs() << "Inverter: MAP END\n");
 		}
-        
-        /// Starting at start, can we arrive at target?
-        /// We may need to revisit this when loop support is added
-        bool bbDFS(BasicBlock *start, BasicBlock *target, int indent = 0)
-        {
-            if (indent == 0) {
-                DEBUG(errs() << "\nInverter: bbDFS(" << start->getName() << ", " << target->getName() << ")\n");
-            }
-            else {
-                DEBUG(errs() << 2 * ' ' << "\nbbDFS(" << start->getName() << ", " << target->getName() << ")\n");
-            }
-            
-            if (start == target) {
-                return true;
-            }
-            
-            for (succ_iterator SI = succ_begin(start), E = succ_end(start); SI != E; ++SI) {
-                BasicBlock *Succ = *SI;
-                DEBUG(errs() << "Inverter: succ of " << start->getName() << ": " << Succ->getName() << "\n");
-                if (target == Succ) {
-                    return true;
-                }
-                if (true == bbDFS(Succ, target)) {
-                    return true;
-                }
-            }
-            
-            return false;
-        }
                 
         void visitSExtInst(SExtInst &I)
         {
