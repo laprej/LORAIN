@@ -1,7 +1,7 @@
 SRCS = test-add.c test-add2.c test-sub.c test-sub2.c test-mul.c test-mul2.c  \
 test-if.c test-if2.c test-if3.c test-if-else.c test-while.c test-while2.c    \
 test-for.c test-array.c test-random.c test-ptr.c test-struct.c test-assign.c \
-test-assign-in-struct.c test-assign-struct-args.c
+test-assign-in-struct.c test-assign-struct-args.c test-augment-struct.c
 REV_OBJS = ${SRCS:.c=-output.o}
 CATCH_OBJS = ${SRCS:.c=-catch.o}
 
@@ -77,6 +77,10 @@ test-assign-in-struct-output.o:
 test-assign-struct-args-output.o:
 	../run.sh test-assign-struct-args test_assign_struct_args \
 	undo_test_assign_struct_args
+
+test-augment-struct-output.o:
+	../run.sh test-augment-struct test_augment_struct \
+	undo_test_augment_struct
 
 clean:
 	rm -f *.o *.s *.bc *.ll *~
