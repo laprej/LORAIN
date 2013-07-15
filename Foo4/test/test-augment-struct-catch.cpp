@@ -18,8 +18,8 @@ TEST_CASE("simple/augment struct", "Augment one of our structs")
     int y = from.x;
     
     test_augment_struct(&from, &to);
-    REQUIRE(t.x != y);
+    REQUIRE(from.x != y);
     
     undo_test_augment_struct(&from, &to);
-    REQUIRE(t.x == y);
+    REQUIRE(from.x == y);
 }
