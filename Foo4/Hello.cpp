@@ -478,7 +478,7 @@ namespace {
         {
             DEBUG(errs() << "Inverter: GetElementPtrInst\n");
 
-			std::vector<Value *> bucket;
+			//std::vector<Value *> bucket;
 			//oldToNew.clear();
 
             Value *storeVal = I.getPointerOperand();
@@ -518,27 +518,7 @@ namespace {
                 storeVal = lookup(storeVal);
             }
 
-			getUseDef(&I, bucket);
-            
-			DEBUG(errs() << "Inverter: " << I << "\n");
-			DEBUG(errs() << "Inverter: Bucket contains:\n");
-			for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
-				 it != e; ++it) {
-				DEBUG(errs() << "Inverter: " << **it << "\n");
-			}
-
-			while (bucket.size()) {
-				Value *v = bucket.back();
-				bucket.pop_back();
-
-                if (lookup(v) != v) {
-                    continue;
-                }
-                
-				if (Instruction *i = dyn_cast<Instruction>(v)) {
-					visit(i);
-				}
-			}
+            handleDeps(I);
             
             // Pass arguments to I into our new GEP instruction
             std::vector<Value *> arr;
@@ -706,24 +686,7 @@ namespace {
         void visitStoreInst(StoreInst &I) {
             DEBUG(errs() << "\n\n\nInverter: STORE INSTRUCTION\n");
 
-			std::vector<Value *> bucket;
-            getUseDef(&I, bucket);
-			
-			DEBUG(errs() << "Inverter: " << I << "\n");
-			DEBUG(errs() << "Inverter: Bucket contains:\n");
-			for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
-				 it != e; ++it) {
-				DEBUG(errs() << "Inverter: " << **it << "\n");
-			}
-			
-			while (bucket.size()) {
-				Value *v = bucket.back();
-				bucket.pop_back();
-				
-				if (Instruction *i = dyn_cast<Instruction>(v)) {
-					visit(i);
-				}
-			}
+            handleDeps(I);
             
             /// This is really hacky but should work for now
             if (MDNode *md = I.getMetadata("jml.swap")) {
@@ -789,26 +752,8 @@ namespace {
             if (str == "rng_gen_val" ||
                 str == "tw_rand_integer" ||
                 str == "tw_rand_exponential") {
-                std::vector<Value *> bucket;
-                //oldToNew.clear();
-                
-                getUseDef(&I, bucket);
-                
-                DEBUG(errs() << "Inverter: " << I << "\n");
-                DEBUG(errs() << "Inverter: Bucket contains:\n");
-                for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
-                     it != e; ++it) {
-                    DEBUG(errs() << "Inverter: " << **it << "\n");
-                }
-                
-                while (bucket.size()) {
-                    Value *v = bucket.back();
-                    bucket.pop_back();
-                    
-                    if (Instruction *i = dyn_cast<Instruction>(v)) {
-                        visit(i);
-                    }
-                }
+
+                handleDeps(I);
                 
                 errs() << "We need to reverse the RNG\n";
                 // Fortunately, all the rng functions pass the tw_rng_stream as their first param
@@ -915,9 +860,32 @@ namespace {
 			DEBUG(errs() << std::string(2*indent, ' '));
             DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
 		}
-    };
-    
-    class Swapper {
+        
+        /// Emit all necessary dependencies for Instruction I
+        void handleDeps(Instruction &I)
+        {
+            std::vector<Value *> bucket;
+            
+            getUseDef(&I, bucket);
+            
+			DEBUG(errs() << "Inverter: " << I << "\n");
+			DEBUG(errs() << "Inverter: Bucket contains:\n");
+			for (std::vector<Value *>::iterator it = bucket.begin(), e = bucket.end();
+				 it != e; ++it) {
+				DEBUG(errs() << "Inverter: " << **it << "\n");
+			}
+            
+			while (bucket.size()) {
+				Value *v = bucket.back();
+				bucket.pop_back();
+                
+                if (!lookup(v)) {
+                    if (Instruction *i = dyn_cast<Instruction>(v)) {
+                        visit(i);
+                    }
+                }
+			}
+        }
         
     };
     
