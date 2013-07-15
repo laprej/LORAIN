@@ -20,4 +20,6 @@ TEST_CASE("simple/augment struct", "Augment one of our structs")
     test_augment_struct(&from, &to);
     REQUIRE(t.x != y);
     
+    undo_test_augment_struct(&from, &to);
+    REQUIRE(t.x == y);
 }
