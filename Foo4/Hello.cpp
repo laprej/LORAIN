@@ -759,12 +759,7 @@ namespace {
 				if (Instruction *w = dyn_cast<Instruction>(v)) {
 					DEBUG(errs() << std::string(2*indent, ' '));
 					DEBUG(errs() << "outputing instruction dependent: " << *w << '\n');
-					
-					/// Don't store alloca's if that's a dependent!!!
-					if (!isa<AllocaInst>(w)) {
-						bucket.push_back(w);
-					}
-					//bucket.push_back(w);
+					bucket.push_back(w);
 					getUseDef(w, bucket, indent + 1);
 					DEBUG(errs() << std::string(2*indent, ' '));
                     DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
