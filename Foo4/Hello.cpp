@@ -449,9 +449,6 @@ namespace {
         {
             DEBUG(errs() << "Inverter: GetElementPtrInst\n");
 
-			//std::vector<Value *> bucket;
-			//oldToNew.clear();
-
             Value *storeVal = I.getPointerOperand();
             
             if (Argument *a = dyn_cast<Argument>(storeVal)) {
@@ -500,17 +497,6 @@ namespace {
             oldToNew[&I] = lastVal;
             
             return;
-            
-            lastVal = builder.getInt64(0);
-
-			assert(lastVal && "lastVal not set!");
-
-			//builder.CreateStore(lastVal, storeVal);
-            lastVal = builder.CreateGEP(storeVal, lastVal);
-            
-            oldToNew[&I] = lastVal;
-
-			lastVal = 0;
         }
         
         BasicBlock *createUnreachable()
@@ -570,28 +556,20 @@ namespace {
                 DEBUG(errs() << "\n");
                 
                 Type *newGlobal = IntegerType::get(I.getContext(), 32);
-                //Twine bfX("bf");
-                //bfX = bfX.concat(Twine(bfn->getZExtValue()));
-                //DEBUG(errs() << "Inverter: bfn->getZExtValue() returned " << bfn->getZExtValue() << "\n");
-                //DEBUG(errs() << "Inverter: and bfX is " << bfX << "\n");
+
 				Value *l = M.getOrInsertGlobal(ctrNum->getString(), newGlobal);
                 
                 Value *ll = builder.CreateLoad(l);
                 
-                //Value *lll = builder.CreateSub(ll, builder.getInt32(1));
-                
-                //Value *llll = builder.CreateStore(lll, l);
-                
-                Value *lllll = builder.CreateICmpSGT(ll, builder.getInt32(0));
+                Value *lll = builder.CreateICmpSGT(ll, builder.getInt32(0));
                 
                 /// 4. Depending on 3, loop or exit loop
                 /// WATCH RIGHT HERE I'M GOING TO CHEAT
                 
-                //BasicBlock *newBody = bbmOldToNew[body->getBasicBlock()];
                 BasicBlock *latch = LI->getLoopFor(bb)->getLoopLatch();
                 BasicBlock *newBody = bbmOldToNew[latch];
                 BasicBlock *newParent = bbmOldToNew[parent->getBasicBlock()];
-                builder.CreateCondBr(lllll, newBody, newParent);
+                builder.CreateCondBr(lll, newBody, newParent);
                 
                 return;
             }
@@ -811,15 +789,6 @@ namespace {
 					DEBUG(errs() << std::string(2*indent, ' '));
                     DEBUG(errs() << "This is a " << *v->getType() << "\n");
                 }
-				
-				
-				/*
-				 else if (Operator *w = dyn_cast<Operator>(v)) {
-				 getUseDef(w, indent + 1);
-				 } else if (Constant *w = dyn_cast<Constant>(v)) {
-				 getUseDef(w, indent + 1);
-				 }
-				 */
 			}
 			DEBUG(errs() << std::string(2*indent, ' '));
             DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
@@ -972,7 +941,6 @@ namespace {
                 if (Preds.size() >= 2) {
                     workList.insert(bb);
                 }
-                //instrumenter.splitUpEdges(bb, Preds, M);
             }
             
             for (std::set<BasicBlock*>::iterator wi = workList.begin(),
