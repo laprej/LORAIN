@@ -741,29 +741,22 @@ namespace {
             
 			if (I.getOpcode() == Instruction::Add) {
 				DEBUG(errs() << "ADD INSTRUCTION\n");
-                //DEBUG(errs() << "lastVal: " << *lastVal << "\n");
                 DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
                 DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
-				//lastVal = builder.CreateSub(lastVal, I.getOperand(1));
 				newInstruction = builder.CreateSub(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
 			}
 			
 			if (I.getOpcode() == Instruction::Sub) {
 				DEBUG(errs() << "SUB INSTRUCTION\n");
-                //DEBUG(errs() << "lastVal: " << *lastVal << "\n");
                 DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
                 DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
-				//lastVal = builder.CreateAdd(lastVal, I.getOperand(1));
 				newInstruction = builder.CreateAdd(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
 			}
 			
 			if (I.getOpcode() == Instruction::Mul) {
 				DEBUG(errs() << "MULT INSTRUCTION\n");
-                //DEBUG(errs() << "lastVal: " << *lastVal << "\n");
                 DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
                 DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
-				//lastVal = builder.CreateSDiv(lastVal, I.getOperand(1));
-                //lastVal = builder.CreateSDiv(I.getOperand(0), I.getOperand(1));
 				newInstruction = builder.CreateSDiv(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
 			}
 			
