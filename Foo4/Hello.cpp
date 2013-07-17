@@ -75,6 +75,8 @@ namespace {
     /// reverse event handler
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
     
+    bool augmentStruct = false;
+    
     /// atadatem = reverse metadata
     class Atadatem : DIDescriptor
     {
@@ -397,7 +399,6 @@ namespace {
 		bool currently_reversing;
 		std::map<Value *, Value *> oldToNew;
 		IRBuilder<> &builder;
-		Value *lastVal;
 		Module &M;
         Hello *h;
 		
@@ -405,7 +406,15 @@ namespace {
         
 		Inverter(IRBuilder<> &b, Module &mod, Hello *H): builder(b), M(mod), h(H) { 
 			currently_reversing = true;
-			lastVal = 0;
+            
+            Function *f = M.getFunction(FuncToInstrument);
+            Function *g = M.getFunction(FuncToGenerate);
+            Function::arg_iterator fi, fe, gi, ge;
+            
+            for (fi = f->arg_begin(), fe = f->arg_end(), gi = g->arg_begin(),
+                 ge = g->arg_end(); fi != fe; ++fi, ++gi) {
+                oldToNew[fi] = gi;
+            }
 		}
 		
 		Value * lookup(Value *k) {
@@ -451,32 +460,7 @@ namespace {
 
             Value *storeVal = I.getPointerOperand();
             
-            if (Argument *a = dyn_cast<Argument>(storeVal)) {
-                DEBUG(errs() << "Argument\n");
-                // Pass arguments to I into our new GEP instruction
-                std::vector<Value *> arr;
-                arr.push_back(I.getOperand(1));
-                arr.push_back(lookup(I.getOperand(2)));
-                
-                unsigned int i;
-                Function::arg_iterator fi, fe, gi, ge;
-                Function *f = I.getParent()->getParent();
-                Function *g = M.getFunction(FuncToGenerate);
-
-                for (fi = f->arg_begin(), fe = f->arg_end(), gi = g->arg_begin(), ge = g->arg_end(), i = 0;
-                     fi != fe; ++fi, ++gi, ++i) {
-                    if (a->getArgNo() == i) {
-                        DEBUG(errs() << "Found our argument, replacing it with the new arg\n");
-                        Value *v = gi;
-                        lastVal = builder.CreateGEP(v, arr);
-                        oldToNew[&I] = lastVal;
-                        break;
-                    }
-                }
-                
-                return;
-            }
-			else if (isa<GlobalValue>(storeVal)) {
+            if (isa<GlobalValue>(storeVal)) {
                 DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
 				currently_reversing = true;
             }
@@ -492,9 +476,9 @@ namespace {
             std::vector<Value *> arr;
             arr.push_back(I.getOperand(1));
             arr.push_back(lookup(I.getOperand(2)));
-            lastVal = builder.CreateGEP(lookup(I.getOperand(0)), arr);
+            Value *GEP = builder.CreateGEP(lookup(I.getOperand(0)), arr);
             
-            oldToNew[&I] = lastVal;
+            oldToNew[&I] = GEP;
             
             return;
         }
@@ -634,7 +618,7 @@ namespace {
         
         void visitStoreInst(StoreInst &I) {
             DEBUG(errs() << "\n\n\nInverter: STORE INSTRUCTION\n");
-
+            
             handleDeps(I);
             
             /// This is really hacky but should work for now
@@ -656,18 +640,9 @@ namespace {
 				currently_reversing = false;
                 storeVal = lookup(storeVal);
             }
-
-            if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
-                errs() << "Assigning a Constant: " << *C << "\n";
-                lastVal = C;
-            }
-			
-			assert(lastVal && "lastVal not set!");
-			
-			builder.CreateStore(lastVal, storeVal);
-			
-			lastVal = 0;
-		}
+            
+            builder.CreateStore(lookup(I.getValueOperand()), lookup(I.getPointerOperand()));
+        }
 		
 		void visitLoadInst(LoadInst &I) {
 			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION\n");
@@ -739,7 +714,6 @@ namespace {
 			}
 			
 			oldToNew[&I] = newInstruction;
-			lastVal = newInstruction;
 		}
 		
 		/// Collect all use-defs into a container
@@ -775,7 +749,6 @@ namespace {
                     unsigned i;
                     for (i = 0, fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi, ++i) {
                         if (i == a->getArgNo()) {
-                            lastVal = fi;
                             break;
                         }
                     }
@@ -907,6 +880,11 @@ namespace {
             ////////////////////////////////////////
             /// Instrument the forward event handler
             ////////////////////////////////////////
+            
+            if (M.getGlobalVariable("__augment_struct")) {
+                errs() << "Enabling struct augmentation\n";
+                augmentStruct = true;
+            }
             
             errs() << "Instrumentation phase beginning...\n\n";
             
