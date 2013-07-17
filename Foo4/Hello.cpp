@@ -458,6 +458,8 @@ namespace {
         {
             DEBUG(errs() << "Inverter: GetElementPtrInst\n");
 
+            handleDeps(I);
+            
             Value *storeVal = I.getPointerOperand();
             
             if (isa<GlobalValue>(storeVal)) {
@@ -470,8 +472,6 @@ namespace {
                 storeVal = lookup(storeVal);
             }
 
-            handleDeps(I);
-            
             // Pass arguments to I into our new GEP instruction
             std::vector<Value *> arr;
             arr.push_back(I.getOperand(1));
@@ -669,6 +669,8 @@ namespace {
         void visitCallInst(CallInst &I) {
             DEBUG(errs() << "\n\n\nInverter: CALL INSTRUCTION\n");
             
+            handleDeps(I);
+            
             Function *fun = I.getCalledFunction();
             StringRef str = fun->getName();
             DEBUG(errs() << str << " called\n");
@@ -677,8 +679,6 @@ namespace {
                 str == "tw_rand_integer" ||
                 str == "tw_rand_exponential") {
 
-                handleDeps(I);
-                
                 errs() << "We need to reverse the RNG\n";
                 // Fortunately, all the rng functions pass the tw_rng_stream as their first param
                 Value *G = I.getArgOperand(0);
