@@ -434,6 +434,16 @@ namespace {
 			
 			return it->second;
 		}
+        
+        /// This lookup cannot return 0. If it isn't in the mapping, return k
+        Value * lookupNotNull(Value *k)
+        {
+            Value *v = lookup(k);
+            if (!v) {
+                return k;
+            }
+            return v;
+        }
 		
 		void outputMap() {
 			std::map<Value *, Value *>::iterator it, e;
@@ -449,8 +459,27 @@ namespace {
         {
             DEBUG(errs() << "Inverter: SExtInst\n");
             
+            handleDeps(I);
+            
             Value *v = builder.CreateSExt(lookup(I.getOperand(0)), I.getDestTy());
             
+            oldToNew[&I] = v;
+        }
+        
+        void visitBitCast(BitCastInst &I)
+        {
+            DEBUG(errs() << "Inverter: BitCastInst\n");
+            DEBUG(errs() << I << "\n");
+            
+            handleDeps(I);
+            
+            errs() << "Converting " << *I.getSrcTy() << " to ";
+            errs() << *I.getDestTy() << "\n";
+            
+            Value *value = I.getOperand(0);
+            value = lookupNotNull(value);
+            
+            Value *v = builder.CreateBitCast(value, I.getDestTy());
             oldToNew[&I] = v;
         }
 		
@@ -641,7 +670,7 @@ namespace {
                 pointerOperand = lookup(pointerOperand);
             }
             
-            builder.CreateStore(lookup(I.getValueOperand()), pointerOperand);
+            builder.CreateStore(lookupNotNull(I.getValueOperand()), pointerOperand);
         }
 		
 		void visitLoadInst(LoadInst &I) {
@@ -1036,6 +1065,9 @@ namespace {
 //                                assert(l->getPointerOperand() == b->getPointerOperand());
 //                            }
 //                        }
+                        
+                        // TODO: Get rid of the MDA stuff and just find out if
+                        // the place we're storing to is an alloca
                         
                         if (AllocaInst *a = dyn_cast<AllocaInst>(mdr.getInst())) {
                             /// We have a local variable that we're storing into
