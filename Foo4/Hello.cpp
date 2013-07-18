@@ -396,7 +396,6 @@ namespace {
     
     class Inverter : public InstVisitor<Inverter>
     {
-		bool currently_reversing;
 		std::map<Value *, Value *> oldToNew;
 		IRBuilder<> &builder;
 		Module &M;
@@ -404,9 +403,7 @@ namespace {
 		
     public:
         
-		Inverter(IRBuilder<> &b, Module &mod, Hello *H): builder(b), M(mod), h(H) { 
-			currently_reversing = true;
-            
+		Inverter(IRBuilder<> &b, Module &mod, Hello *H): builder(b), M(mod), h(H) {
             Function *f = M.getFunction(FuncToInstrument);
             Function *g = M.getFunction(FuncToGenerate);
             Function::arg_iterator fi, fe, gi, ge;
@@ -493,11 +490,9 @@ namespace {
             
             if (isa<GlobalValue>(storeVal)) {
                 DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
-				currently_reversing = true;
             }
             else {
                 DEBUG(errs() << "Inverter: " << storeVal->getName() << " is not a global value\n");
-				currently_reversing = false;
                 storeVal = lookup(storeVal);
             }
 
@@ -662,11 +657,9 @@ namespace {
             Value *pointerOperand = I.getPointerOperand();
 			if (isa<GlobalValue>(pointerOperand) /*|| isa<GetElementPtrInst>(storeVal)*/) {
                 DEBUG(errs() << "Inverter: " << pointerOperand->getName() << " is a global value\n");
-				currently_reversing = true;
             }
             else {
                 DEBUG(errs() << "Inverter: " << pointerOperand->getName() << " is not a global value\n");
-				currently_reversing = false;
                 pointerOperand = lookup(pointerOperand);
             }
             
