@@ -630,18 +630,18 @@ namespace {
                 return;
             }
             
-            Value *storeVal = I.getPointerOperand();
-			if (isa<GlobalValue>(storeVal) /*|| isa<GetElementPtrInst>(storeVal)*/) {
-                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is a global value\n");
+            Value *pointerOperand = I.getPointerOperand();
+			if (isa<GlobalValue>(pointerOperand) /*|| isa<GetElementPtrInst>(storeVal)*/) {
+                DEBUG(errs() << "Inverter: " << pointerOperand->getName() << " is a global value\n");
 				currently_reversing = true;
             }
             else {
-                DEBUG(errs() << "Inverter: " << storeVal->getName() << " is not a global value\n");
+                DEBUG(errs() << "Inverter: " << pointerOperand->getName() << " is not a global value\n");
 				currently_reversing = false;
-                storeVal = lookup(storeVal);
+                pointerOperand = lookup(pointerOperand);
             }
             
-            builder.CreateStore(lookup(I.getValueOperand()), lookup(I.getPointerOperand()));
+            builder.CreateStore(lookup(I.getValueOperand()), pointerOperand);
         }
 		
 		void visitLoadInst(LoadInst &I) {
