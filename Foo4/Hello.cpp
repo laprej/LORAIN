@@ -75,6 +75,8 @@ namespace {
     /// reverse event handler
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
     
+    std::list<Instruction *> allocas;
+    
     bool augmentStruct = false;
     
     /// atadatem = reverse metadata
@@ -383,6 +385,21 @@ namespace {
 				markJML(&I, false);
             }
         }
+        
+        void visitAllocaInst(AllocaInst &I)
+        {
+            allocas.push_back(&I);
+            markJML(&I);
+            
+            // See if we have any users
+            for (Value::use_iterator i = I.use_begin(), e = I.use_end(); i != e; ++i) {
+                Value *v = *i;
+                if (StoreInst *s = dyn_cast<StoreInst>(v)) {
+                    allocas.push_back(s);
+                    markJML(s);
+                }
+            }
+        }
 
 	};
     
@@ -394,9 +411,11 @@ namespace {
 #undef DEBUG_TYPE
 #define DEBUG_TYPE "Inverter"
     
+    std::map<Value *, Value *> oldToNew;
+    
     class Inverter : public InstVisitor<Inverter>
     {
-		std::map<Value *, Value *> oldToNew;
+		//std::map<Value *, Value *> oldToNew;
 		IRBuilder<> &builder;
 		Module &M;
         Hello *h;
@@ -968,6 +987,14 @@ namespace {
             bbmOldToNew[bb] = newBlock;
             bbmNewToOld[newBlock] = bb;
             
+            while (allocas.size()) {
+                Instruction *inst = allocas.front();
+                allocas.pop_front();
+                IRBuilder<> builder(newBlock);
+                Inverter inv(builder, M, this);
+                inv.visit(inst);
+            }
+            
             /// Make analogs to all BBs in function
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 if (bb == fi) {
@@ -1062,15 +1089,16 @@ namespace {
                         // TODO: Get rid of the MDA stuff and just find out if
                         // the place we're storing to is an alloca
                         
-                        if (AllocaInst *a = dyn_cast<AllocaInst>(mdr.getInst())) {
-                            /// We have a local variable that we're storing into
-                            /// Add an AllocaInst and update the mappings for lookup()
-                            inv.visitAllocaInst(*a);
-                            inv.visitStoreInst(*b);
-                        }
-                        else {
-                            stores.push(b);
-                        }
+//                        if (AllocaInst *a = dyn_cast<AllocaInst>(mdr.getInst())) {
+//                            /// We have a local variable that we're storing into
+//                            /// Add an AllocaInst and update the mappings for lookup()
+//                            inv.visitAllocaInst(*a);
+//                            inv.visitStoreInst(*b);
+//                        }
+//                        else {
+//                            stores.push(b);
+//                        }
+                        stores.push(b);
                     }
                     
                     if (CallInst *c = dyn_cast<CallInst>(j)) {
