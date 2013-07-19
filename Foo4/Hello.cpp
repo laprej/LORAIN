@@ -517,9 +517,10 @@ namespace {
 
             // Pass arguments to I into our new GEP instruction
             std::vector<Value *> arr;
-            arr.push_back(I.getOperand(1));
-            arr.push_back(lookup(I.getOperand(2)));
-            Value *GEP = builder.CreateGEP(lookup(I.getOperand(0)), arr);
+            for (unsigned i = 1, count = I.getNumOperands(); i < count; i++) {
+                arr.push_back(lookupNotNull(I.getOperand(i)));
+            }
+            Value *GEP = builder.CreateGEP(lookupNotNull(I.getOperand(0)), arr);
             
             oldToNew[&I] = GEP;
             
