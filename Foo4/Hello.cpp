@@ -726,34 +726,58 @@ namespace {
                 Value *G = I.getArgOperand(0);
                 Function *reverse_rng = M.getFunction("rng_gen_reverse_val");
                 assert(reverse_rng && "rng_gen_reverse_val not found!");
-                builder.CreateCall(reverse_rng, lookup(G));
+                Value *v = builder.CreateCall(reverse_rng, lookup(G));
+                oldToNew[&I] = v;
             }
         }
 		
 		void visitBinaryOperator(BinaryOperator &I) {
-			Value *newInstruction;
 			DEBUG(errs() << "\n\n\nBINARY OPERATOR\n");
             
-			if (I.getOpcode() == Instruction::Add) {
-				DEBUG(errs() << "ADD INSTRUCTION\n");
-                DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
-                DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
-				newInstruction = builder.CreateSub(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
-			}
-			
-			if (I.getOpcode() == Instruction::Sub) {
-				DEBUG(errs() << "SUB INSTRUCTION\n");
-                DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
-                DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
-				newInstruction = builder.CreateAdd(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
-			}
-			
-			if (I.getOpcode() == Instruction::Mul) {
-				DEBUG(errs() << "MULT INSTRUCTION\n");
-                DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
-                DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
-				newInstruction = builder.CreateSDiv(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
-			}
+            handleDeps(I);
+            
+            Value *newInstruction = 0;
+            
+            switch (I.getOpcode()) {
+                case Instruction::Add:
+                    DEBUG(errs() << "ADD INSTRUCTION\n");
+                    DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                    DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+                    newInstruction = builder.CreateSub(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+                    break;
+                    
+                case Instruction::FAdd:
+                    DEBUG(errs() << "FADD INSTRUCTION\n");
+                    DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                    DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+                    newInstruction = builder.CreateFSub(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+                    break;
+                    
+                case Instruction::Sub:
+                    DEBUG(errs() << "SUB INSTRUCTION\n");
+                    DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                    DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+                    newInstruction = builder.CreateAdd(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+                    break;
+                    
+                case Instruction::FSub:
+                    DEBUG(errs() << "FSUB INSTRUCTION\n");
+                    DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                    DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+                    newInstruction = builder.CreateFAdd(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+                    break;
+                    
+                case Instruction::Mul:
+                    DEBUG(errs() << "MULT INSTRUCTION\n");
+                    DEBUG(errs() << "Operand 0: " << *I.getOperand(0) << "\n");
+                    DEBUG(errs() << "Operand 1: " << *I.getOperand(1) << "\n");
+                    newInstruction = builder.CreateSDiv(lookup(I.getOperand(0)), lookup(I.getOperand(1)));
+                    break;
+                    
+                default:
+                    assert(0 && "visitBinaryOperator fell through!");
+                    break;
+            }
 			
 			oldToNew[&I] = newInstruction;
 		}
