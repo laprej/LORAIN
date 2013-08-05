@@ -454,6 +454,10 @@ namespace {
                 
         void visitSExtInst(SExtInst &I)
         {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
             DEBUG(errs() << "Inverter: SExtInst\n");
             
             handleDeps(I);
@@ -465,6 +469,10 @@ namespace {
         
         void visitBitCast(BitCastInst &I)
         {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
             DEBUG(errs() << "Inverter: BitCastInst\n");
             DEBUG(errs() << I << "\n");
             
@@ -482,6 +490,10 @@ namespace {
 		
         void visitGetElementPtrInst(GetElementPtrInst &I)
         {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
             DEBUG(errs() << "Inverter: GetElementPtrInst\n");
 
             handleDeps(I);
@@ -520,6 +532,10 @@ namespace {
         }
         
 		void visitTerminatorInst(TerminatorInst &I) {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
 			DEBUG(errs() << "\n\n\nInverter: TERMINATOR INSTRUCTION\n");
             DEBUG(errs() << "Inverter: For " << I.getParent()->getName() << "\n");
 			
@@ -633,6 +649,10 @@ namespace {
 		}
 		
 		void visitAllocaInst(AllocaInst &I) {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
 			DEBUG(errs() << "\n\n\nInverter: ALLOCA INSTRUCTION\n");
 
 			Value *alloc = builder.CreateAlloca(I.getAllocatedType(), 0, I.getName());
@@ -642,6 +662,10 @@ namespace {
 		}
         
         void visitStoreInst(StoreInst &I) {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
             DEBUG(errs() << "\n\n\nInverter: STORE INSTRUCTION\n");
             
             handleDeps(I);
@@ -668,6 +692,10 @@ namespace {
         }
 		
 		void visitLoadInst(LoadInst &I) {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
 			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION\n");
 			
 			Value *valOfI = &I;
@@ -690,6 +718,10 @@ namespace {
 		}
         
         void visitCallInst(CallInst &I) {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
             DEBUG(errs() << "\n\n\nInverter: CALL INSTRUCTION\n");
             
             handleDeps(I);
@@ -713,6 +745,10 @@ namespace {
         }
 		
 		void visitBinaryOperator(BinaryOperator &I) {
+            if (lookup(&I)) {
+                // Already created a counterpart for this instruction, exit
+                return;
+            }
 			DEBUG(errs() << "\n\n\nBINARY OPERATOR\n");
             
             handleDeps(I);
