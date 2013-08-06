@@ -640,8 +640,7 @@ namespace {
 			if (count == 1) {
 				BasicBlock *pred = *pred_begin(bb);
 				BasicBlock *newSucc = bbmOldToNew[pred];
-				Value *v = builder.CreateBr(newSucc);
-                errs() << "single predecessor: " << *v << "\n";
+				builder.CreateBr(newSucc);
 				return;
 			}
 			
