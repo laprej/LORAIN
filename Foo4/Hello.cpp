@@ -715,8 +715,16 @@ namespace {
                 DEBUG(errs() << "Inverter: " << pointerOperand->getName() << " is not a global value\n");
                 pointerOperand = lookup(pointerOperand);
             }
-            
-            builder.CreateStore(lookupNotNull(I.getValueOperand()), pointerOperand);
+
+            Value *lval = lookup(I.getValueOperand());
+            // If lval == 0, it's something we don't want to reverse (e.g. tw_event_new calls)
+            if (!lval) {
+                return;
+            }
+
+            lval = builder.CreateBitCast(lval, pointerOperand->getType()->getPointerElementType());
+
+            builder.CreateStore(lval, pointerOperand);
         }
 		
 		void visitLoadInst(LoadInst &I) {
