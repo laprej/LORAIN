@@ -74,6 +74,8 @@ namespace {
     /// Map basic blocks from (old) event handler to (new) synthesized
     /// reverse event handler
 	std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
+    std::vector<Instruction *> allocas;
+    std::vector<Instruction *> args;
     
     bool augmentStruct = false;
     
@@ -384,6 +386,32 @@ namespace {
             }
         }
 
+        void visitAllocaInst(AllocaInst &I)
+        {
+            allocas.push_back(&I);
+            markJML(&I);
+            // See if we have any users
+            for (Value::use_iterator i = I.use_begin(), e = I.use_end(); i != e; ++i) {
+                Value *v = *i;
+                if (StoreInst *s = dyn_cast<StoreInst>(v)) {
+                    for (User::op_iterator i = s->op_begin(), e = s->op_end();
+                         i != e; ++i) {
+                        Value *v = *i;
+
+                        if (Argument *a = dyn_cast<Argument>(v)) {
+                            errs() << "We have an argument!\n";
+                            errs() << "It's arg no. " << a->getArgNo() << "\n";
+                            errs() << "Assuming symmetric arguments.\n";
+
+                            args.push_back(s);
+                            markJML(s);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
 	};
     
     class Hello;
@@ -394,9 +422,10 @@ namespace {
 #undef DEBUG_TYPE
 #define DEBUG_TYPE "Inverter"
     
+    std::map<Value *, Value *> oldToNew;
+
     class Inverter : public InstVisitor<Inverter>
     {
-		std::map<Value *, Value *> oldToNew;
 		IRBuilder<> &builder;
 		Module &M;
         Hello *h;
@@ -1027,7 +1056,23 @@ namespace {
                                                       "return_rev", target);
             bbmOldToNew[bb] = newBlock;
             bbmNewToOld[newBlock] = bb;
-            
+
+            while (allocas.size()) {
+                Instruction *inst = allocas.back();
+                allocas.pop_back();
+                IRBuilder<> builder(newBlock);
+                Inverter inv(builder, M, this);
+                inv.visit(inst);
+            }
+
+            while (args.size()) {
+                Instruction *inst = args.back();
+                args.pop_back();
+                IRBuilder<> builder(newBlock);
+                Inverter inv(builder, M, this);
+                inv.visit(inst);
+            }
+
             /// Make analogs to all BBs in function
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 if (bb == fi) {
