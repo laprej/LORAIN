@@ -218,7 +218,7 @@ namespace {
             int i;
             std::vector<Value *> blocks;
             pred_iterator pi, pe;
-            for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, i*=2) {
+            for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
                 BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
                 blocks.push_back(BlockAddress::get(b));
                 temp.SetInsertPoint(b->getTerminator());
@@ -619,7 +619,7 @@ namespace {
                     bb = cast<BlockAddress>(node->getOperand(i));
                     block = bb->getBasicBlock();
                     block = bbmOldToNew[block];
-                    ConstantInt *ci = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 1 << i);
+                    ConstantInt *ci = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), i + 1);
                     cast<SwitchInst>(switchInst)->addCase(ci, block);
                 }
                 return;
