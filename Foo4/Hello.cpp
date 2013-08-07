@@ -228,6 +228,16 @@ namespace {
                 markJML(store);
             }
             
+            if (usingRoss) {
+                int numBits = lrint(log2(i));
+                errs() << i << " pred edges require " << numBits << " bits\n";
+                
+                blocks.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), bitFieldCount));
+                blocks.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), numBits));
+                
+                bitFieldCount += numBits;
+            }
+
             MDNode *switchPaths = MDNode::get(getGlobalContext(), blocks);
             NamedMDNode *nmd = M.getOrInsertNamedMetadata(Name);
             nmd->addOperand(switchPaths);
@@ -644,7 +654,17 @@ namespace {
                 BlockAddress *bb = cast<BlockAddress>(node->getOperand(0));
                 BasicBlock *block = bb->getBasicBlock();
                 Value *switchInst = builder.CreateSwitch(load, createUnreachable());
-                for (unsigned i = 0; i < node->getNumOperands(); ++i) {
+                
+                unsigned numOperands;
+                
+                if (usingRoss) {
+                    numOperands = node->getNumOperands() - 2;
+                }
+                else {
+                    numOperands = node->getNumOperands();
+                }
+                
+                for (unsigned i = 0; i < numOperands; ++i) {
                     bb = cast<BlockAddress>(node->getOperand(i));
                     block = bb->getBasicBlock();
                     block = bbmOldToNew[block];
