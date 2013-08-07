@@ -733,7 +733,9 @@ namespace {
                 return;
             }
 			DEBUG(errs() << "\n\n\nInverter: LOAD INSTRUCTION\n");
-			
+
+            handleDeps(I);
+
 			Value *valOfI = &I;
 			
 			Value *loadVal = I.getPointerOperand();
