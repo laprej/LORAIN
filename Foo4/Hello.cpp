@@ -77,7 +77,7 @@ namespace {
     std::vector<Instruction *> allocas;
     std::vector<Instruction *> args;
     
-    bool augmentStruct = false;
+    bool usingRoss = false;
     
     /// atadatem = reverse metadata
     class Atadatem : DIDescriptor
@@ -1002,9 +1002,9 @@ namespace {
             /// Instrument the forward event handler
             ////////////////////////////////////////
             
-            if (M.getGlobalVariable("__augment_struct")) {
-                errs() << "Enabling struct augmentation\n";
-                augmentStruct = true;
+            if (M.getGlobalVariable("__USING_ROSS")) {
+                errs() << "ROSS Mode assumes functions have appropriate arguments\n";
+                usingRoss = true;
             }
             
             errs() << "Instrumentation phase beginning...\n\n";
