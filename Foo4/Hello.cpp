@@ -186,12 +186,33 @@ namespace {
             return ret;
 		}
         
+        Value *searchArgumentsAllocas(Type *t)
+        {
+            Function *f = M.getFunction(FuncToInstrument);
+            Function::arg_iterator fi, fe;
+            Value::use_iterator ui, ue;
+            
+            for (fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi) {
+                Argument *a = fi;
+                if (a->getType() == t) {
+                    for (ui = a->use_begin(), ue = a->use_end(); ui != ue; ++ui) {
+                        if (StoreInst *store = dyn_cast<StoreInst>(*ui)) {
+                            Value *v = store->getPointerOperand();
+                            return v;
+                        }
+                    }
+                }
+            }
+            
+            return 0;
+        }
+        
         /// Add blocks in between the predecessors and successor block
         /// so we can add a var assignment to help the switch later
         void splitUpEdges(BasicBlock *successor, Module &M)
         {
-            Function *ForwardFunc = M.getFunction(FuncToInstrument);
-            LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
+            Function *F = M.getFunction(FuncToInstrument);
+            LoopInfo *LI = h->getLoopInfo(*F);
             // If we're in a loop, don't do this.
             if (LI->getLoopDepth(successor)) {
                 return;
@@ -220,15 +241,23 @@ namespace {
             int i;
             std::vector<Value *> blocks;
             pred_iterator pi, pe;
-            for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
-                BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
-                blocks.push_back(BlockAddress::get(b));
-                temp.SetInsertPoint(b->getTerminator());
-                Value *store = temp.CreateStore(temp.getInt32(i), GV);
-                markJML(store);
-            }
             
             if (usingRoss) {
+                for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
+                    BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
+                    blocks.push_back(BlockAddress::get(b));
+                    temp.SetInsertPoint(b->getTerminator());
+                    Value *v = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(1));
+                    assert(v && "nothing was returned");
+                    Value *loadBitField = temp.CreateLoad(v);
+                    
+                    // This doesn't actually work 
+                    Value *lval = temp.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
+                    
+                    Value *store = temp.CreateStore(temp.getInt32(i), lval);
+                    markJML(store);
+                }
+                
                 int numBits = lrint(log2(i));
                 errs() << i << " pred edges require " << numBits << " bits\n";
                 
@@ -236,6 +265,15 @@ namespace {
                 blocks.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), numBits));
                 
                 bitFieldCount += numBits;
+            }
+            else {
+                for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
+                    BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
+                    blocks.push_back(BlockAddress::get(b));
+                    temp.SetInsertPoint(b->getTerminator());
+                    Value *store = temp.CreateStore(temp.getInt32(i), GV);
+                    markJML(store);
+                }
             }
 
             MDNode *switchPaths = MDNode::get(getGlobalContext(), blocks);
