@@ -243,24 +243,43 @@ namespace {
             pred_iterator pi, pe;
             
             if (usingRoss) {
+                int numPreds = 0;
+                
+                for (pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi) {
+                    numPreds++;
+                }
+                
+                /// We use zero to be a "reset" bf so we have to add 1 to numPreds
+                int numBits = lrint(log2(numPreds + 1));
+                errs() << numPreds << " pred edges require " << numBits << " bits\n";
+                uint32_t mask = 0;
+                mask = (1 << numBits) - 1;
+                mask <<= bitFieldCount;
+                errs() << "Mask should be: ";
+                errs().write_hex(mask) << "\n";
+                
                 for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
                     BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
                     blocks.push_back(BlockAddress::get(b));
                     temp.SetInsertPoint(b->getTerminator());
                     Value *v = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(1));
                     assert(v && "nothing was returned");
+                    /// Load the bitfield
                     Value *loadBitField = temp.CreateLoad(v);
-                    
-                    // This doesn't actually work 
-                    Value *lval = temp.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
-                    
-                    Value *store = temp.CreateStore(temp.getInt32(i), lval);
+                    /// Bitcast it
+                    Value *bcast = temp.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
+                    /// Another load
+                    Value *al = temp.CreateLoad(bcast);
+                    /// Turn on appropriate bits
+                    Value *newVal = temp.getInt32(i);
+                    /// Shift our new val
+                    Value *shifted = temp.CreateShl(newVal, bitFieldCount);
+                    /// Perform an OR
+                    Value *OR = temp.CreateOr(shifted, al);
+                    Value *store = temp.CreateStore(OR, bcast);
                     markJML(store);
                 }
-                
-                int numBits = lrint(log2(i));
-                errs() << i << " pred edges require " << numBits << " bits\n";
-                
+
                 blocks.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), bitFieldCount));
                 blocks.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), numBits));
                 
@@ -696,7 +715,17 @@ namespace {
                 unsigned numOperands;
                 
                 if (usingRoss) {
-                    numOperands = node->getNumOperands() - 2;
+                    int numOps = node->getNumOperands();
+                    numOperands = numOps - 2;
+                    
+                    int numBits = cast<ConstantInt>(node->getOperand(numOps - 1))->getZExtValue();
+                    int bfc = cast<ConstantInt>(node->getOperand(numOps - 2))->getZExtValue();
+                    uint32_t mask = 0;
+                    mask = (1 << numBits) - 1;
+                    mask <<= bfc;
+                    errs() << "Mask should be: ";
+                    errs().write_hex(mask) << "\n";
+
                 }
                 else {
                     numOperands = node->getNumOperands();
