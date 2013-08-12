@@ -88,6 +88,26 @@ namespace {
         bool isSkip() const { return getUnsignedField(0) != 0; }
         //void setSkip(bool b) { skip = b; }
     };
+    
+    Value *searchArgumentsAllocas(Type *t, Module &M, Function *f)
+    {
+        Function::arg_iterator fi, fe;
+        Value::use_iterator ui, ue;
+        
+        for (fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi) {
+            Argument *a = fi;
+            if (a->getType() == t) {
+                for (ui = a->use_begin(), ue = a->use_end(); ui != ue; ++ui) {
+                    if (StoreInst *store = dyn_cast<StoreInst>(*ui)) {
+                        Value *v = store->getPointerOperand();
+                        return v;
+                    }
+                }
+            }
+        }
+        
+        return 0;
+    }
 	
 #pragma mark
 #pragma mark Instrumenter
@@ -185,28 +205,7 @@ namespace {
             
             return ret;
 		}
-        
-        Value *searchArgumentsAllocas(Type *t)
-        {
-            Function *f = M.getFunction(FuncToInstrument);
-            Function::arg_iterator fi, fe;
-            Value::use_iterator ui, ue;
-            
-            for (fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi) {
-                Argument *a = fi;
-                if (a->getType() == t) {
-                    for (ui = a->use_begin(), ue = a->use_end(); ui != ue; ++ui) {
-                        if (StoreInst *store = dyn_cast<StoreInst>(*ui)) {
-                            Value *v = store->getPointerOperand();
-                            return v;
-                        }
-                    }
-                }
-            }
-            
-            return 0;
-        }
-        
+
         /// Add blocks in between the predecessors and successor block
         /// so we can add a var assignment to help the switch later
         void splitUpEdges(BasicBlock *successor, Module &M)
@@ -262,7 +261,7 @@ namespace {
                     BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
                     blocks.push_back(BlockAddress::get(b));
                     temp.SetInsertPoint(b->getTerminator());
-                    Value *v = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(1));
+                    Value *v = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(1), M, F);
                     assert(v && "nothing was returned");
                     /// Load the bitfield
                     Value *loadBitField = temp.CreateLoad(v);
@@ -710,11 +709,12 @@ namespace {
                 assert(node->getNumOperands() && "No operands found in MDNode");
                 BlockAddress *bb = cast<BlockAddress>(node->getOperand(0));
                 BasicBlock *block = bb->getBasicBlock();
-                Value *switchInst = builder.CreateSwitch(load, createUnreachable());
+                Value *switchInst;// = builder.CreateSwitch(load, createUnreachable());
                 
                 unsigned numOperands;
                 
                 if (usingRoss) {
+                    Function *F = M.getFunction(FuncToGenerate);
                     int numOps = node->getNumOperands();
                     numOperands = numOps - 2;
                     
@@ -726,9 +726,25 @@ namespace {
                     errs() << "Mask should be: ";
                     errs().write_hex(mask) << "\n";
 
+                    //builder.SetInsertPoint(cast<Instruction>(switchInst));
+                    Value *v = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(1), M, F);
+                    assert(v && "nothing was returned");
+                    /// Load the bitfield
+                    Value *loadBitField = builder.CreateLoad(v);
+                    /// Bitcast it
+                    Value *bcast = builder.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
+                    /// Another load
+                    Value *al = builder.CreateLoad(bcast);
+                    /// AND that value
+                    Value *And = builder.CreateAnd(al, mask);
+                    /// Shift to the right
+                    Value *shifted = builder.CreateLShr(And, bfc);
+                    /// Create a new shift
+                    switchInst = builder.CreateSwitch(shifted, createUnreachable());
                 }
                 else {
                     numOperands = node->getNumOperands();
+                    switchInst = builder.CreateSwitch(load, createUnreachable());
                 }
                 
                 for (unsigned i = 0; i < numOperands; ++i) {
