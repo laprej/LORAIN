@@ -709,7 +709,7 @@ namespace {
                 assert(node->getNumOperands() && "No operands found in MDNode");
                 BlockAddress *bb = cast<BlockAddress>(node->getOperand(0));
                 BasicBlock *block = bb->getBasicBlock();
-                Value *switchInst;// = builder.CreateSwitch(load, createUnreachable());
+                Value *switchInst;
                 
                 unsigned numOperands;
                 
@@ -726,7 +726,6 @@ namespace {
                     errs() << "Mask should be: ";
                     errs().write_hex(mask) << "\n";
 
-                    //builder.SetInsertPoint(cast<Instruction>(switchInst));
                     Value *v = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(1), M, F);
                     assert(v && "nothing was returned");
                     /// Load the bitfield
