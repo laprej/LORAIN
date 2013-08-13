@@ -256,6 +256,8 @@ namespace {
                 mask <<= bitFieldCount;
                 errs() << "Mask should be: ";
                 errs().write_hex(mask) << "\n";
+                errs() << "Flipped, that is ";
+                errs().write_hex(~mask) << "\n";
                 
                 for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
                     BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
@@ -269,12 +271,14 @@ namespace {
                     Value *bcast = temp.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
                     /// Another load
                     Value *al = temp.CreateLoad(bcast);
+                    /// Clear the old bits
+                    Value *clear = temp.CreateAnd(al, ~mask);
                     /// Turn on appropriate bits
                     Value *newVal = temp.getInt32(i);
                     /// Shift our new val
                     Value *shifted = temp.CreateShl(newVal, bitFieldCount);
                     /// Perform an OR
-                    Value *OR = temp.CreateOr(shifted, al);
+                    Value *OR = temp.CreateOr(shifted, clear);
                     Value *store = temp.CreateStore(OR, bcast);
                     markJML(store);
                 }
