@@ -89,23 +89,33 @@ namespace {
         //void setSkip(bool b) { skip = b; }
     };
     
-    Value *searchArgumentsAllocas(Type *t, Module &M, Function *f)
+    /// Given a type and function, search through the arguments to find it
+    Value *searchArguments(Type *t, Module &M, Function *f)
     {
         Function::arg_iterator fi, fe;
-        Value::use_iterator ui, ue;
         
         for (fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi) {
             Argument *a = fi;
             if (a->getType() == t) {
-                for (ui = a->use_begin(), ue = a->use_end(); ui != ue; ++ui) {
-                    if (StoreInst *store = dyn_cast<StoreInst>(*ui)) {
-                        Value *v = store->getPointerOperand();
-                        return v;
-                    }
-                }
+                return a;
             }
         }
+        return 0;
+    }
+    
+    /// Find arg and corresponding alloca instruction for it
+    Value *searchArgumentsAllocas(Type *t, Module &M, Function *f)
+    {
+        Value *a = searchArguments(t, M, f);
         
+        Value::use_iterator ui, ue;
+        
+        for (ui = a->use_begin(), ue = a->use_end(); ui != ue; ++ui) {
+            if (StoreInst *store = dyn_cast<StoreInst>(*ui)) {
+                Value *v = store->getPointerOperand();
+                return v;
+            }
+        }
         return 0;
     }
 	
