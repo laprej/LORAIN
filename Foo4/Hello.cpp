@@ -146,6 +146,51 @@ namespace {
             count++;
         }
     }
+    
+    /// Collect all use-defs into a container
+    void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 0) {
+        if (indent == 0) {
+            DEBUG(errs() << "uses\n");
+        }
+        
+        int uses = 0;
+        
+        for (User::op_iterator i = I->op_begin(), e = I->op_end();
+             i != e; ++i) {
+            uses++;
+            
+            Value *v = *i;
+            
+            if (Instruction *w = dyn_cast<Instruction>(v)) {
+                DEBUG(errs() << std::string(2*indent, ' '));
+                DEBUG(errs() << "outputing instruction dependent: " << *w << '\n');
+                bucket.push_back(w);
+                getUseDef(w, bucket, f, indent + 1);
+                DEBUG(errs() << std::string(2*indent, ' '));
+                DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
+            }
+            else if (Argument *a = dyn_cast<Argument>(v)) {
+                errs() << "We have an argument!\n";
+                errs() << "It's arg no. " << a->getArgNo() << "\n";
+                errs() << "Assuming symmetric arguments.\n";
+                
+                f->getArgumentList();
+                Function::arg_iterator fi, fe;
+                unsigned i;
+                for (i = 0, fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi, ++i) {
+                    if (i == a->getArgNo()) {
+                        break;
+                    }
+                }
+            }
+            else {
+                DEBUG(errs() << std::string(2*indent, ' '));
+                DEBUG(errs() << "This is a " << *v->getType() << "\n");
+            }
+        }
+        DEBUG(errs() << std::string(2*indent, ' '));
+        DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
+    }
 	
 #pragma mark
 #pragma mark Instrumenter
@@ -982,59 +1027,15 @@ namespace {
 			
 			oldToNew[&I] = newInstruction;
 		}
-		
-		/// Collect all use-defs into a container
-		void getUseDef(User *I, std::vector<Value *> &bucket, int indent = 0) {
-			if (indent == 0) {
-				DEBUG(errs() << "uses\n");
-			}
-			
-            int uses = 0;
-            
-			for (User::op_iterator i = I->op_begin(), e = I->op_end();
-				 i != e; ++i) {
-				uses++;
-                
-				Value *v = *i;
-				
-				if (Instruction *w = dyn_cast<Instruction>(v)) {
-					DEBUG(errs() << std::string(2*indent, ' '));
-					DEBUG(errs() << "outputing instruction dependent: " << *w << '\n');
-					bucket.push_back(w);
-					getUseDef(w, bucket, indent + 1);
-					DEBUG(errs() << std::string(2*indent, ' '));
-                    DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
-				}
-                else if (Argument *a = dyn_cast<Argument>(v)) {
-                    errs() << "We have an argument!\n";
-                    errs() << "It's arg no. " << a->getArgNo() << "\n";
-                    errs() << "Assuming symmetric arguments.\n";
-                    
-                    Function *f = M.getFunction(FuncToGenerate);
-                    f->getArgumentList();
-                    Function::arg_iterator fi, fe;
-                    unsigned i;
-                    for (i = 0, fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi, ++i) {
-                        if (i == a->getArgNo()) {
-                            break;
-                        }
-                    }
-                }
-                else {
-					DEBUG(errs() << std::string(2*indent, ' '));
-                    DEBUG(errs() << "This is a " << *v->getType() << "\n");
-                }
-			}
-			DEBUG(errs() << std::string(2*indent, ' '));
-            DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
-		}
         
         /// Emit all necessary dependencies for Instruction I
         void handleDeps(Instruction &I)
         {
             std::vector<Value *> bucket;
             
-            getUseDef(&I, bucket);
+            Function *f = I.getParent()->getParent();
+            
+            getUseDef(&I, bucket, f);
             
 			DEBUG(errs() << "Inverter: " << I << "\n");
 			DEBUG(errs() << "Inverter: Bucket contains:\n");
