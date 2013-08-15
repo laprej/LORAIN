@@ -826,6 +826,8 @@ namespace {
                 return;
             }
 			DEBUG(errs() << "\n\n\nInverter: ALLOCA INSTRUCTION\n");
+            
+            handleDeps(I);
 
 			Value *alloc = builder.CreateAlloca(I.getAllocatedType(), 0, I.getName());
 			DEBUG(errs() << "Inverter: Allocating a " << *I.getType() << "\n");
