@@ -77,6 +77,8 @@ namespace {
     std::vector<Instruction *> allocas;
     std::vector<Instruction *> args;
     
+    SmallPtrSet<Instruction*, 8> argUsers[4];
+    
     bool usingRoss = false;
     
     /// atadatem = reverse metadata
@@ -117,6 +119,32 @@ namespace {
             }
         }
         return 0;
+    }
+    
+    /// Collect arg users into argUsers
+    void getArgUsers(Function *f)
+    {
+        int count = 0;
+        Function::arg_iterator i, e;
+        Value::use_iterator ui, ue, UI, UE;
+        
+        /// For each argument
+        for (i = f->arg_begin(), e = f->arg_end(); i != e; ++i) {
+            /// For each use of arg[i]
+            for (ui = i->use_begin(), ue = i->use_end(); ui != ue; ++ui) {
+                if (StoreInst *st = dyn_cast<StoreInst>(*ui)) {
+                    Value *v = st->getPointerOperand();
+                    /// For each of the users of the pointer operand
+                    for (UI = v->use_begin(), UE = v->use_end(); UI != UE; ++UI) {
+                        if (Instruction *inst = dyn_cast<Instruction>(*UI)) {
+                            argUsers[count].insert(inst);
+                            errs() << "Put (" << *inst << ") into bucket " << count << "\n";
+                        }
+                    }
+                }
+            }
+            count++;
+        }
     }
 	
 #pragma mark
