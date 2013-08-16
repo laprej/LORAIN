@@ -77,7 +77,7 @@ namespace {
     std::vector<Instruction *> allocas;
     std::vector<Instruction *> args;
     
-    SmallPtrSet<Instruction*, 8> argUsers[4];
+    std::set<Value*> argUsers[4];
     
     bool usingRoss = false;
     
@@ -146,7 +146,7 @@ namespace {
             count++;
         }
     }
-    
+
     /// Collect all use-defs into a container
     void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 0) {
         if (indent == 0) {
@@ -190,6 +190,35 @@ namespace {
         }
         DEBUG(errs() << std::string(2*indent, ' '));
         DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
+    }
+    
+    /// Find common Values used by I and the Function arg[argIndex]
+    std::vector<Value *> overlap(Instruction &I, int argIndex=0)
+    {
+        std::vector<Value *> results;
+        if (usingRoss) {
+            std::vector<Value *> bucket;
+            std::vector<Value *>::iterator i, e;
+
+            Function *f = I.getParent()->getParent();
+
+            getUseDef(&I, bucket, f);
+
+            std::sort(bucket.begin(), bucket.end());
+            i = std::unique(bucket.begin(), bucket.end());
+            bucket.resize(std::distance(bucket.begin(), i));
+            
+            results.resize(argUsers[argIndex].size());
+            
+            i = std::set_intersection(bucket.begin(),
+                                      bucket.end(),
+                                      argUsers[argIndex].begin(),
+                                      argUsers[argIndex].end(),
+                                      results.begin());
+            results.resize(i - results.begin());
+        }
+        
+        return results;
     }
 	
 #pragma mark
@@ -506,6 +535,8 @@ namespace {
 		}
 
         void visitStoreInst(StoreInst &I) {
+            overlap(I);
+
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
                 errs() << "Assigning a Constant: " << *C << "\n";
                 
@@ -1189,6 +1220,9 @@ namespace {
                 instrumenter.splitUpEdges(*wi, M);
             }
 
+            /// Store argument users
+            getArgUsers(ForwardFunc);
+
             for (inst_iterator I = inst_begin(ForwardFunc), E = inst_end(ForwardFunc); I != E; ++I) {
                 // Needed here due to Select approach which may have added
                 // metadata already...
@@ -1200,13 +1234,14 @@ namespace {
                 }
                 instrumenter.visit(&*I);
             }
-            
-            DEBUG(errs() << "Found " << FuncToInstrument << "\n");
-            
+
+            errs() << "Instrumentation complete.\n";
+            errs() << "No more modification to the input function.\n";
+
             Function *target = createReverseFunction(M);
-            
+
             target->deleteBody();
-            
+
             /// Put exit BB first in function
             BasicBlock *bb = findExitBlock(*ForwardFunc);
             BasicBlock *newBlock = BasicBlock::Create(getGlobalContext(),
