@@ -983,9 +983,7 @@ namespace {
                 return;
             }
             DEBUG(errs() << "\n\n\nInverter: CALL INSTRUCTION\n");
-            
-            handleDeps(I);
-            
+
             Function *fun = I.getCalledFunction();
             StringRef str = fun->getName();
             DEBUG(errs() << str << " called\n");
@@ -993,6 +991,8 @@ namespace {
             if (str == "rng_gen_val" ||
                 str == "tw_rand_integer" ||
                 str == "tw_rand_exponential") {
+
+                handleDeps(I);
 
                 errs() << "We need to reverse the RNG\n";
                 // Fortunately, all the rng functions pass the tw_rng_stream as their first param
