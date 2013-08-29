@@ -1002,6 +1002,20 @@ namespace {
                 Value *v = builder.CreateCall(reverse_rng, lookup(G));
                 oldToNew[&I] = v;
             }
+            
+            /// At some point in the future, we may switch this with a zero
+            /// value.  For now, this is the quickest way.
+            if (str == "tw_now") {
+                errs() << "Calling tw_now()\n";
+
+                handleDeps(I);
+
+                Value *G = I.getArgOperand(0);
+                Function *now = M.getFunction("tw_now");
+                assert(now && "tw_now not found!");
+                Value *v = builder.CreateCall(now, lookup(G));
+                oldToNew[&I] = v;
+            }
         }
 		
 		void visitBinaryOperator(BinaryOperator &I) {
