@@ -535,7 +535,14 @@ namespace {
 		}
 
         void visitStoreInst(StoreInst &I) {
-            overlap(I);
+            std::vector<Value *> results = overlap(I);
+            if (usingRoss && !results.size()) {
+                /// We have no overlap w/ arg0 (LP state), don't reverse this
+                errs() << "Storing to non-LP state variable\n";
+                Value *v = cast<Value>(&I);
+                markJML(v);
+                return;
+            }
 
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
                 errs() << "Assigning a Constant: " << *C << "\n";
