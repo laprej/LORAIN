@@ -544,6 +544,11 @@ namespace {
                 return;
             }
 
+            /// These are the cases for "destructive" assignment
+            if (LoadInst *L = dyn_cast<LoadInst>(I.getValueOperand())) {
+            }
+            if (CallInst *C = dyn_cast<CallInst>(I.getValueOperand())) {
+            }
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
                 errs() << "Assigning a Constant: " << *C << "\n";
                 
