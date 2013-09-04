@@ -1229,6 +1229,9 @@ namespace {
                 }
             }
             
+            /// We need to add basic blocks to the CFG so we can set our
+            /// bitfields in them.  The bitfields are used to find our
+            /// correct path back through the CFG
             for (std::set<BasicBlock*>::iterator wi = workList.begin(),
                  we = workList.end(); wi != we; ++wi) {
                 instrumenter.splitUpEdges(*wi, M);
