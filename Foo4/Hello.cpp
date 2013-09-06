@@ -541,13 +541,79 @@ namespace {
                 errs() << "Storing to non-LP state variable\n";
                 Value *v = cast<Value>(&I);
                 markJML(v);
+                
+                Function *f = M.getFunction(FuncToInstrument);
+                std::vector<Argument *> funArgsFrom;
+                for (Function::arg_iterator iter = f->arg_begin(),
+                     end = f->arg_end(); iter != end; ++iter) {
+                    funArgsFrom.push_back(iter);
+                }
+                                
+                Type *Ty = 0;
+                
+                FunctionType *funTypeFrom = f->getFunctionType();
+                
+                std::vector<Type *> funTypeArgsFrom(funTypeFrom->param_begin(), funTypeFrom->param_end());
+                Ty = funTypeArgsFrom[2];
+                
+                assert(Ty);
+                assert(isa<PointerType>(Ty));
+                
+                Ty = Ty->getPointerElementType();
+                
+                assert(isa<StructType>(Ty));
+                
+                StructType *fromStruct = cast<StructType>(Ty);
+                
+                std::vector<Type *> structItems(fromStruct->element_begin(), fromStruct->element_end());
+                
+                StructType *toStruct = StructType::create(structItems, fromStruct->getName(), fromStruct->isPacked());
+                
+                PointerType *toStructPtr = PointerType::getUnqual(toStruct);
+                
+                Argument *newArg = new Argument(toStructPtr, funArgsFrom[2]->getName(), 0);
+                
+                errs() << "Created new Argument " << newArg->getName() << "\n";
+                
+                //ftArgs[2] = p;
+                std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
+                funTypeArgsTo[2] = toStructPtr;
+                
+                std::vector<Argument *> funArgsTo(funArgsFrom.begin(), funArgsFrom.end());
+                funArgsTo[2] = newArg;
+                
+                FunctionType *funTypeTo = FunctionType::get(f->getReturnType(), funTypeArgsTo, false);
+                
+                Function *newFun = Function::Create(funTypeTo, Function::ExternalLinkage, f->getName());
+                
+                ValueToValueMapTy vmap;
+                for (unsigned i = 0; i < funArgsFrom.size(); ++i) {
+                    vmap.insert(std::make_pair(funArgsFrom[i], funArgsTo[i]));
+                }
+                
+                SmallVector<ReturnInst*, 4> Returns;
+                
+                CloneFunctionInto(newFun, f, vmap, false, Returns);
+                
+                //cast<Value>(funArgs[2])
+                //Value *bar = funArgs[2];
+                //f->replaceUsesOfWith(&bar, newArg);
+                
+                //ftArgs[2] = p;
+                
+//                FunctionType *F = FunctionType::get(f->getReturnType(), ftArgs, false);
+//                CloneFunction(<#const llvm::Function *F#>, <#ValueToValueMapTy &VMap#>, <#bool ModuleLevelChanges#>)
+//                i->replaceAllUsesWith(<#llvm::Value *V#>)
+
                 return;
             }
 
             /// These are the cases for "destructive" assignment
             if (LoadInst *L = dyn_cast<LoadInst>(I.getValueOperand())) {
+                errs() << *L << "\n";
             }
             if (CallInst *C = dyn_cast<CallInst>(I.getValueOperand())) {
+                errs() << *C << "\n";
             }
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
                 errs() << "Assigning a Constant: " << *C << "\n";
