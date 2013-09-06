@@ -575,7 +575,6 @@ namespace {
                 
                 errs() << "Created new Argument " << newArg->getName() << "\n";
                 
-                //ftArgs[2] = p;
                 std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
                 funTypeArgsTo[2] = toStructPtr;
                 
@@ -594,16 +593,6 @@ namespace {
                 SmallVector<ReturnInst*, 4> Returns;
                 
                 CloneFunctionInto(newFun, f, vmap, false, Returns);
-                
-                //cast<Value>(funArgs[2])
-                //Value *bar = funArgs[2];
-                //f->replaceUsesOfWith(&bar, newArg);
-                
-                //ftArgs[2] = p;
-                
-//                FunctionType *F = FunctionType::get(f->getReturnType(), ftArgs, false);
-//                CloneFunction(<#const llvm::Function *F#>, <#ValueToValueMapTy &VMap#>, <#bool ModuleLevelChanges#>)
-//                i->replaceAllUsesWith(<#llvm::Value *V#>)
 
                 return;
             }
