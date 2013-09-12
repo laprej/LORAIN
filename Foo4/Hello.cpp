@@ -81,6 +81,24 @@ namespace {
     
     bool usingRoss = false;
     
+    class MessageUpdater: public ValueMapTypeRemapper
+    {
+    public:
+        Type *remapType(Type *SrcTy)
+        {
+            std::map<Type *, Type *>::iterator i, e;
+            for (i = foo.begin(), e = foo.end(); i != e; ++i) {
+                if (SrcTy == i->first) {
+                    return i->second;
+                }
+            }
+
+            assert(0 && "Type not found in map!");
+            return 0;
+        }
+        std::map<Type *, Type *> foo;
+    };
+    
     /// atadatem = reverse metadata
     class Atadatem : DIDescriptor
     {
