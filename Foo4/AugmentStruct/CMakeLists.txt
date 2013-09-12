@@ -1,2 +1,3 @@
-add_llvm_loadable_module(aug-structs
-	AugmentStruct.cpp)
+add_llvm_loadable_module(aug-struct
+	AugmentStruct.cpp
+	AugmentStruct.h)
