@@ -43,15 +43,15 @@ namespace {
         Type *remapType(Type *SrcTy)
         {
             std::map<Type *, Type *>::iterator i, e;
-            for (i = foo.begin(), e = foo.end(); i != e; ++i) {
+            for (i = TyMap.begin(), e = TyMap.end(); i != e; ++i) {
                 if (SrcTy == i->first) {
                     return i->second;
                 }
             }
-            
+            /// We aren't overriding this type so just return it
             return SrcTy;
         }
-        std::map<Type *, Type *> foo;
+        std::map<Type *, Type *> TyMap;
     };
     
     std::set<Value*> argUsers[4];
@@ -263,9 +263,9 @@ namespace {
         std::vector<Argument *> funArgsTo(funArgsFrom.begin(), funArgsFrom.end());
         funArgsTo[2] = newArg;
         
-        FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, false);
+        FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, F->getFunctionType()->isVarArg());
         
-        Function *newFun = Function::Create(funTypeTo, Function::ExternalLinkage, F->getName());
+        Function *newFun = Function::Create(funTypeTo, F->getLinkage(), F->getName());
         
         ValueToValueMapTy vmap;
         for (unsigned i = 0; i < funArgsFrom.size(); ++i) {
@@ -274,19 +274,30 @@ namespace {
         
         SmallVector<ReturnInst*, 4> Returns;
         
-        MessageUpdater foobar;
+        MessageUpdater TyMapper;
         
-        foobar.foo.insert(std::make_pair(fromStruct, toStruct));
-        foobar.foo.insert(std::make_pair(fromStructPtr, toStructPtr));
-        foobar.foo.insert(std::make_pair(fromStructPtrPtr, toStructPtrPtr));
+        TyMapper.TyMap.insert(std::make_pair(fromStruct, toStruct));
+        TyMapper.TyMap.insert(std::make_pair(fromStructPtr, toStructPtr));
+        TyMapper.TyMap.insert(std::make_pair(fromStructPtrPtr, toStructPtrPtr));
         
         std::map<Type *, Type *>::iterator i, e;
-        for (i = foobar.foo.begin(), e = foobar.foo.end(); i != e; ++i) {
+        for (i = TyMapper.TyMap.begin(), e = TyMapper.TyMap.end(); i != e; ++i) {
             errs() << *i->first << " maps to " << *i->second << "\n";
         }
         
-        CloneFunctionInto(newFun, F, vmap, false, Returns, "", 0, &foobar);
+        CloneFunctionInto(newFun, F, vmap, true, Returns, "", 0, &TyMapper);
         
+        while (!F->use_empty()) {
+            User *U = F->use_back();
+            errs() << "Use of F: " << *U << "\n";
+            errs() << "Type: " << *U->getType() << "\n";
+            if (Constant *C = dyn_cast<Constant>(U)) {
+                C->replaceUsesOfWithOnConstant(F, newFun, 0);
+            }
+        }
+//        F->deleteBody();
+//        F->dropAllReferences();
+//        F->eraseFromParent();
         
         return true;
     }
