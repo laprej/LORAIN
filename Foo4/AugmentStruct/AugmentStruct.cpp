@@ -13,6 +13,17 @@
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 
+// Basically, we want to:
+// Find the target function
+// Using a InstVisitor, find all Stores
+// If the Store overwrites something derived from the LP state, we need to save it
+// Add the corresponding Value (from above) to a work list
+// Create a new struct appending the collected Values (from above) to the message struct
+// Create a new function type
+// Copy all arguments, adjusting the message struct to our new type
+// Clone our event handler to the new Function type
+// Drop original function
+
 using namespace llvm;
 
 namespace {
@@ -38,8 +49,7 @@ namespace {
                 }
             }
             
-            assert(0 && "Type not found in map!");
-            return 0;
+            return SrcTy;
         }
         std::map<Type *, Type *> foo;
     };
@@ -157,6 +167,7 @@ namespace {
         /// Create the list of types that are destructively assigned and
         /// require state-saving be done so they can be restored
         void visitStoreInst(StoreInst &I) {
+            // If the Store overwrites something derived from the LP state, we need to save it
             std::vector<Value *> results = overlap(I);
             /// We have no overlap w/ arg0 (LP state), just return
             if (!results.size()) {
@@ -166,113 +177,7 @@ namespace {
             /// Do some checks in here to determine if we are doing
             /// "destructive" assignment or not.  Mainly, check if our
             /// StoreInst references the same address for a Load
-            
-            Function *f = M.getFunction(FuncToInstrument);
-            std::vector<Argument *> funArgsFrom;
-            for (Function::arg_iterator iter = f->arg_begin(),
-                 end = f->arg_end(); iter != end; ++iter) {
-                funArgsFrom.push_back(iter);
-            }
-            
-            Type *Ty = 0;
-            
-            FunctionType *funTypeFrom = f->getFunctionType();
-            
-            std::vector<Type *> funTypeArgsFrom(funTypeFrom->param_begin(),
-                                                funTypeFrom->param_end());
-            Ty = funTypeArgsFrom[2];
-            
-            assert(Ty);
-            assert(isa<PointerType>(Ty));
-            
-            Ty = Ty->getPointerElementType();
-            
-            assert(isa<StructType>(Ty));
-            
-            StructType *fromStruct = cast<StructType>(Ty);
-            PointerType *fromStructPtr = PointerType::getUnqual(fromStruct);
-            PointerType *fromStructPtrPtr = PointerType::getUnqual(fromStructPtr);
-            
-            std::vector<Type *> structItems(fromStruct->element_begin(),
-                                            fromStruct->element_end());
-            
-            StructType *toStruct = StructType::create(structItems, fromStruct->getName(), fromStruct->isPacked());
-            PointerType *toStructPtr = PointerType::getUnqual(toStruct);
-            PointerType *toStructPtrPtr = PointerType::getUnqual(toStructPtr);
-            
-            Argument *newArg = new Argument(toStructPtr, funArgsFrom[2]->getName(), 0);
-            
-            errs() << "Created new Argument " << newArg->getName() << "\n";
-            
-            std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
-            funTypeArgsTo[2] = toStructPtr;
-            
-            std::vector<Argument *> funArgsTo(funArgsFrom.begin(), funArgsFrom.end());
-            funArgsTo[2] = newArg;
-            
-            FunctionType *funTypeTo = FunctionType::get(f->getReturnType(), funTypeArgsTo, false);
-            
-            Function *newFun = Function::Create(funTypeTo, Function::ExternalLinkage, f->getName());
-            
-            ValueToValueMapTy vmap;
-            for (unsigned i = 0; i < funArgsFrom.size(); ++i) {
-                vmap.insert(std::make_pair(funArgsFrom[i], funArgsTo[i]));
-            }
-            
-            SmallVector<ReturnInst*, 4> Returns;
-            
-            MessageUpdater foobar;
-            
-            foobar.foo.insert(std::make_pair(fromStruct, toStruct));
-            foobar.foo.insert(std::make_pair(fromStructPtr, toStructPtr));
-            foobar.foo.insert(std::make_pair(fromStructPtrPtr, toStructPtrPtr));
-            
-            for (inst_iterator I = inst_begin(f), E = inst_end(f); I != E; ++I) {
-                foobar.foo.insert(std::make_pair(I->getType(), I->getType()));
-            }
-            
-            std::map<Type *, Type *>::iterator i, e;
-            for (i = foobar.foo.begin(), e = foobar.foo.end(); i != e; ++i) {
-                errs() << *i->first << " maps to " << *i->second << "\n";
-            }
-            
-            //foobar.foo.insert(std::make_pair(funArgsFrom[2], funArgsTo[2]));
-            
-            CloneFunctionInto(newFun, f, vmap, false, Returns, "", 0, &foobar);
-            
-            //                f->removeFromParent();
-            //
-            //                return;
-            
-            f->replaceAllUsesWith(ConstantExpr::getBitCast(newFun, f->getType()));
-            newFun->removeDeadConstantUsers();
-            f->eraseFromParent();
-            
-            for (Value::use_iterator i = f->use_begin(), e = f->use_end(); i != e; ++i) {
-                if (Instruction *Inst = dyn_cast<Instruction>(*i)) {
-                    errs() << "F is used in instruction:\n";
-                    errs() << *Inst << "\n";
-                }
-                else {
-                    // All uses fall into this category
-                    errs() << "F (non-instruction): " << **i << "\n";
-                    errs() << "F.type is " << *i->getType() << "\n";
-                    
-                    if (isa<MDNode>(*i)) {
-                        errs() << "MDNode\n";
-                    }
-                    if (isa<BlockAddress>(*i)) {
-                        errs() << "Blockaddress\n";
-                    }
-                    if (BlockAddress *b = dyn_cast<BlockAddress>(*i)) {
-                        Function *baf = b->getFunction();
-                        BasicBlock *bb = b->getBasicBlock();
-                        //b->replaceUsesOfWithOnConstant(<#llvm::Value *From#>, <#llvm::Value *To#>, <#llvm::Use *U#>)
-                    }
-                }
-            }
-            
-            return;
+            workList.push_back(I.getValueOperand());
         }
     };
     
@@ -286,12 +191,23 @@ namespace {
         if (!usingRoss)
             return false;
         
-        if (Function *F = M.getFunction(FuncToInstrument)) {
-            getArgUsers(F);
-            
-            Instrumenter instrumenter(M);
+        // Find the target function
+        Function *F = M.getFunction(FuncToInstrument);
+        
+        if (!F) {
+            errs() << FuncToInstrument << " not found\n";
+            return false;
         }
         
+        getArgUsers(F);
+        
+        // Using a InstVisitor, find all Stores
+        Instrumenter instrumenter(M);
+        for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+            instrumenter.visit(*I);
+        }
+
+        std::vector<Type *> TypesToAdd;
         for (std::vector<Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
             /// Increment the statistics
             ++ValsSavedToMesg;
@@ -301,14 +217,81 @@ namespace {
                 errs() << "Adding " << v->getName() << " to message\n";
             }
             else {
-                errs() << "Adding unnamed type " << *v->getType() << " to message";
+                errs() << "Adding unnamed type " << *v->getType() << " to message\n";
             }
+            TypesToAdd.push_back(v->getType());
         }
         
-        return false;
+        std::vector<Argument *> funArgsFrom;
+        for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+            funArgsFrom.push_back(I);
+        }
+        
+        Type *Ty = 0;
+        
+        FunctionType *funTypeFrom = F->getFunctionType();
+        
+        std::vector<Type *> funTypeArgsFrom(funTypeFrom->param_begin(),
+                                            funTypeFrom->param_end());
+        Ty = funTypeArgsFrom[2];
+        
+        assert(Ty);
+        assert(isa<PointerType>(Ty));
+        
+        Ty = Ty->getPointerElementType();
+        
+        assert(isa<StructType>(Ty));
+        
+        StructType *fromStruct = cast<StructType>(Ty);
+        PointerType *fromStructPtr = PointerType::getUnqual(fromStruct);
+        PointerType *fromStructPtrPtr = PointerType::getUnqual(fromStructPtr);
+        
+        std::vector<Type *> structItems(fromStruct->element_begin(),
+                                        fromStruct->element_end());
+        
+        StructType *toStruct = StructType::create(structItems, fromStruct->getName(), fromStruct->isPacked());
+        PointerType *toStructPtr = PointerType::getUnqual(toStruct);
+        PointerType *toStructPtrPtr = PointerType::getUnqual(toStructPtr);
+        
+        Argument *newArg = new Argument(toStructPtr, funArgsFrom[2]->getName(), 0);
+        
+        errs() << "Created new Argument " << newArg->getName() << "\n";
+        
+        std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
+        funTypeArgsTo[2] = toStructPtr;
+        
+        std::vector<Argument *> funArgsTo(funArgsFrom.begin(), funArgsFrom.end());
+        funArgsTo[2] = newArg;
+        
+        FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, false);
+        
+        Function *newFun = Function::Create(funTypeTo, Function::ExternalLinkage, F->getName());
+        
+        ValueToValueMapTy vmap;
+        for (unsigned i = 0; i < funArgsFrom.size(); ++i) {
+            vmap.insert(std::make_pair(funArgsFrom[i], funArgsTo[i]));
+        }
+        
+        SmallVector<ReturnInst*, 4> Returns;
+        
+        MessageUpdater foobar;
+        
+        foobar.foo.insert(std::make_pair(fromStruct, toStruct));
+        foobar.foo.insert(std::make_pair(fromStructPtr, toStructPtr));
+        foobar.foo.insert(std::make_pair(fromStructPtrPtr, toStructPtrPtr));
+        
+        std::map<Type *, Type *>::iterator i, e;
+        for (i = foobar.foo.begin(), e = foobar.foo.end(); i != e; ++i) {
+            errs() << *i->first << " maps to " << *i->second << "\n";
+        }
+        
+        CloneFunctionInto(newFun, F, vmap, false, Returns, "", 0, &foobar);
+        
+        
+        return true;
     }
+    
+    char AugmentStruct::ID = 0;
+    static RegisterPass<AugmentStruct> A ("aug-struct",
+                                          "Augment Message Struct");
 }
-
-char AugmentStruct::ID = 0;
-static RegisterPass<AugmentStruct> A ("aug-struct",
-                                      "Augment Message Struct");
