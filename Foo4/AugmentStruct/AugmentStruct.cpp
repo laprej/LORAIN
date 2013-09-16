@@ -265,11 +265,15 @@ namespace {
         
         FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, F->getFunctionType()->isVarArg());
         
-        Function *newFun = Function::Create(funTypeTo, F->getLinkage(), F->getName());
+        Function *newFun = Function::Create(funTypeTo, F->getLinkage(), F->getName(), &M);
         
-        ValueToValueMapTy vmap;
-        for (unsigned i = 0; i < funArgsFrom.size(); ++i) {
-            vmap.insert(std::make_pair(funArgsFrom[i], funArgsTo[i]));
+        ValueToValueMapTy VMap;
+        Function::arg_iterator DestI = newFun->arg_begin();
+        
+        for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
+             I != E; ++I) {
+            DestI->setName(I->getName());
+            VMap[I] = DestI++;
         }
         
         SmallVector<ReturnInst*, 4> Returns;
@@ -285,7 +289,7 @@ namespace {
             errs() << *i->first << " maps to " << *i->second << "\n";
         }
         
-        CloneFunctionInto(newFun, F, vmap, true, Returns, "", 0, &TyMapper);
+        CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
         
         while (!F->use_empty()) {
             User *U = F->use_back();
@@ -295,9 +299,9 @@ namespace {
                 C->replaceUsesOfWithOnConstant(F, newFun, 0);
             }
         }
-//        F->deleteBody();
-//        F->dropAllReferences();
-//        F->eraseFromParent();
+        
+        F->dropAllReferences();
+        F->eraseFromParent();
         
         return true;
     }
