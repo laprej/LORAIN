@@ -248,6 +248,8 @@ namespace {
         
         std::vector<Type *> structItems(fromStruct->element_begin(),
                                         fromStruct->element_end());
+        /// Add the other items to the struct we're about to create
+        structItems.insert(structItems.end(), TypesToAdd.begin(), TypesToAdd.end());
         
         StructType *toStruct = StructType::create(structItems, fromStruct->getName(), fromStruct->isPacked());
         PointerType *toStructPtr = PointerType::getUnqual(toStruct);
