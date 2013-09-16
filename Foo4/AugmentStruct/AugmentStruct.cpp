@@ -300,6 +300,8 @@ namespace {
             }
         }
         
+        newFun->takeName(F);
+
         F->dropAllReferences();
         F->eraseFromParent();
         
