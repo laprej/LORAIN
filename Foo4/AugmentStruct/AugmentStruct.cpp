@@ -283,12 +283,7 @@ namespace {
         TyMapper.TyMap[fromStruct] = toStruct;
         TyMapper.TyMap[fromStructPtr] = toStructPtr;
         TyMapper.TyMap[fromStructPtrPtr] = toStructPtrPtr;
-        
-        std::map<Type *, Type *>::iterator i, e;
-        for (i = TyMapper.TyMap.begin(), e = TyMapper.TyMap.end(); i != e; ++i) {
-            DEBUG(errs() << *i->first << " maps to " << *i->second << "\n");
-        }
-        
+
         CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
         
         while (!F->use_empty()) {
