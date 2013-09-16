@@ -80,9 +80,9 @@ namespace {
                 DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
             }
             else if (Argument *a = dyn_cast<Argument>(v)) {
-                errs() << "We have an argument!\n";
-                errs() << "It's arg no. " << a->getArgNo() << "\n";
-                errs() << "Assuming symmetric arguments.\n";
+                DEBUG(errs() << "We have an argument!\n");
+                DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
+                DEBUG(errs() << "Assuming symmetric arguments.\n");
                 
                 f->getArgumentList();
                 Function::arg_iterator fi, fe;
@@ -148,7 +148,7 @@ namespace {
                     for (UI = v->use_begin(), UE = v->use_end(); UI != UE; ++UI) {
                         if (Instruction *inst = dyn_cast<Instruction>(*UI)) {
                             argUsers[count].insert(inst);
-                            errs() << "Put (" << *inst << ") into bucket " << count << "\n";
+                            DEBUG(errs() << "Put (" << *inst << ") into bucket " << count << "\n");
                         }
                     }
                 }
@@ -214,10 +214,10 @@ namespace {
             
             Value *v = *i;
             if (v->hasName()) {
-                errs() << "Adding " << v->getName() << " to message\n";
+                DEBUG(errs() << "Adding " << v->getName() << " to message\n");
             }
             else {
-                errs() << "Adding unnamed type " << *v->getType() << " to message\n";
+                DEBUG(errs() << "Adding unnamed type " << *v->getType() << " to message\n");
             }
             TypesToAdd.push_back(v->getType());
         }
@@ -255,7 +255,7 @@ namespace {
         
         Argument *newArg = new Argument(toStructPtr, funArgsFrom[2]->getName(), 0);
         
-        errs() << "Created new Argument " << newArg->getName() << "\n";
+        DEBUG(errs() << "Created new Argument " << newArg->getName() << "\n");
         
         std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
         funTypeArgsTo[2] = toStructPtr;
@@ -286,16 +286,18 @@ namespace {
         
         std::map<Type *, Type *>::iterator i, e;
         for (i = TyMapper.TyMap.begin(), e = TyMapper.TyMap.end(); i != e; ++i) {
-            errs() << *i->first << " maps to " << *i->second << "\n";
+            DEBUG(errs() << *i->first << " maps to " << *i->second << "\n");
         }
         
         CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
         
         while (!F->use_empty()) {
             User *U = F->use_back();
-            errs() << "Use of F: " << *U << "\n";
-            errs() << "Type: " << *U->getType() << "\n";
+            DEBUG(errs() << "Use of F: " << *U << "\n");
+            DEBUG(errs() << "Type: " << *U->getType() << "\n");
             if (Constant *C = dyn_cast<Constant>(U)) {
+                /// replaceAllUsesWith will fail because the function types are
+                /// different.  Do it this way instead
                 C->replaceUsesOfWithOnConstant(F, newFun, 0);
             }
         }
