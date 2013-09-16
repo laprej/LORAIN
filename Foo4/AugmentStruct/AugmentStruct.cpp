@@ -280,9 +280,9 @@ namespace {
         
         MessageUpdater TyMapper;
         
-        TyMapper.TyMap.insert(std::make_pair(fromStruct, toStruct));
-        TyMapper.TyMap.insert(std::make_pair(fromStructPtr, toStructPtr));
-        TyMapper.TyMap.insert(std::make_pair(fromStructPtrPtr, toStructPtrPtr));
+        TyMapper.TyMap[fromStruct] = toStruct;
+        TyMapper.TyMap[fromStructPtr] = toStructPtr;
+        TyMapper.TyMap[fromStructPtrPtr] = toStructPtrPtr;
         
         std::map<Type *, Type *>::iterator i, e;
         for (i = TyMapper.TyMap.begin(), e = TyMapper.TyMap.end(); i != e; ++i) {
