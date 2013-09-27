@@ -103,7 +103,7 @@ namespace {
     }
     
     /// Find common Values used by I and the Function arg[argIndex]
-    std::vector<Value *> overlap(Instruction &I, int argIndex=0)
+    std::vector<Value *> overlap(StoreInst &I, int argIndex=0)
     {
         std::vector<Value *> results;
         if (usingRoss) {
@@ -112,7 +112,17 @@ namespace {
             
             Function *f = I.getParent()->getParent();
             
-            getUseDef(&I, bucket, f);
+            /// If I.value derives from arg0
+            /// AND I.pointer derives from arg0
+            /// Then it's constructive
+            
+            if (User *u = dyn_cast<User>(I.getPointerOperand())) {
+                getUseDef(u, bucket, f);
+            }
+            else {
+                assert(0 && "Uh-oh");
+                getUseDef(&I, bucket, f);
+            }
             
             std::sort(bucket.begin(), bucket.end());
             i = std::unique(bucket.begin(), bucket.end());
