@@ -96,16 +96,14 @@ namespace {
     
     /// Find common Values used by I and the Function arg[argIndex]
     /// This function returns a set (no dupes)
-    std::vector<Value *> overlap(Instruction &I, int argIndex=0)
+    std::vector<Value *> overlap(User &I, Function *F, int argIndex=0)
     {
         std::vector<Value *> results;
         if (usingRoss) {
             std::vector<Value *> bucket;
             std::vector<Value *>::iterator i, e;
-            
-            Function *f = I.getParent()->getParent();
-            
-            getUseDef(&I, bucket, f);
+                        
+            getUseDef(&I, bucket, F);
             
             std::sort(bucket.begin(), bucket.end());
             i = std::unique(bucket.begin(), bucket.end());
@@ -160,8 +158,9 @@ namespace {
         /// Create the list of types that are destructively assigned and
         /// require state-saving be done so they can be restored
         void visitStoreInst(StoreInst &I) {
+            Function *F = I.getParent()->getParent();
             // If the Store overwrites something derived from the LP state, we need to save it
-            std::vector<Value *> results = overlap(I);
+            std::vector<Value *> results = overlap(I, F);
             /// We have no overlap w/ arg0 (LP state), just return
             if (!results.size()) {
                 return;
