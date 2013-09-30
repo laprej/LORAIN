@@ -103,6 +103,7 @@ namespace {
     }
     
     /// Find common Values used by I and the Function arg[argIndex]
+    /// This function returns a set (no dupes)
     std::vector<Value *> overlap(Instruction &I, int argIndex=0)
     {
         std::vector<Value *> results;
