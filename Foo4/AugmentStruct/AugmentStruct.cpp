@@ -83,15 +83,7 @@ namespace {
                 DEBUG(errs() << "We have an argument!\n");
                 DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
                 DEBUG(errs() << "Assuming symmetric arguments.\n");
-                
-                f->getArgumentList();
-                Function::arg_iterator fi, fe;
-                unsigned i;
-                for (i = 0, fi = f->arg_begin(), fe = f->arg_end(); fi != fe; ++fi, ++i) {
-                    if (i == a->getArgNo()) {
-                        break;
-                    }
-                }
+                bucket.push_back(a);
             }
             else {
                 DEBUG(errs() << std::string(2*indent, ' '));
