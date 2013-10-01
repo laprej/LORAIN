@@ -80,10 +80,15 @@ namespace {
                 DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
             }
             else if (Argument *a = dyn_cast<Argument>(v)) {
+                /// This should only happen with optimisation turned on
                 DEBUG(errs() << "We have an argument!\n");
                 DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
                 DEBUG(errs() << "Assuming symmetric arguments.\n");
                 bucket.push_back(a);
+                for (unsigned i = 0; i < bucket.size(); ++i) {
+                    errs() << "[" << i << "]: " << *bucket[i] << "\n";
+                }
+                errs() << "\n";
             }
             else {
                 DEBUG(errs() << std::string(2*indent, ' '));
@@ -108,6 +113,19 @@ namespace {
             std::sort(bucket.begin(), bucket.end());
             i = std::unique(bucket.begin(), bucket.end());
             bucket.resize(std::distance(bucket.begin(), i));
+            
+            errs() << *I << " uses:\n";
+            for (unsigned i = 0; i < bucket.size(); ++i) {
+                errs() << "[" << i << "]: " << *bucket[i] << "\n";
+            }
+            errs() << "\n";
+            
+            errs() << "argUsers[" << argIndex << "] contains:\n";
+            for (std::set<Value*>::iterator i = argUsers[argIndex].begin(),
+                 e = argUsers[argIndex].end(); i != e; ++i) {
+                errs() << **i << "\n";
+            }
+            errs() << "\n";
             
             results.resize(argUsers[argIndex].size());
             
@@ -159,17 +177,33 @@ namespace {
         /// require state-saving be done so they can be restored
         void visitStoreInst(StoreInst &I) {
             Function *F = I.getParent()->getParent();
-            // If the Store overwrites something derived from the LP state, we need to save it
-            std::vector<Value *> results = overlap(I, F);
-            /// We have no overlap w/ arg0 (LP state), just return
-            if (!results.size()) {
-                return;
+            
+            /// Are we storing into the LP state?
+            if (User *ptrOp = dyn_cast<User>(I.getPointerOperand())) {
+                std::vector<Value *> stateStores = overlap(ptrOp, F);
+                /// If not, just return
+                if (stateStores.size() == 0) {
+                    return;
+                }
+                
+                /// OK, we're storing into the LP state.  Figure out whether
+                /// it's constructive or destructive
+                if (User *valOp = dyn_cast<User>(I.getValueOperand())) {
+                    std::vector<Value *> stateVals = overlap(valOp, F);
+                    if (stateVals.size() == 0) {
+                        /// Where did we get this value?  Not constructive!
+                        workList.push_back(I.getValueOperand());
+                        return;
+                    }
+                    /// It is constructive assignment, don't save it
+                    return;
+                }
             }
             
             /// Do some checks in here to determine if we are doing
             /// "destructive" assignment or not.  Mainly, check if our
             /// StoreInst references the same address for a Load
-            workList.push_back(I.getValueOperand());
+            // workList.push_back(I.getValueOperand());
         }
     };
     
@@ -215,6 +249,7 @@ namespace {
             else {
                 DEBUG(errs() << "Adding unnamed type " << *v->getType() << " to message\n");
             }
+            errs() << "Which has type " << *v->getType() << "\n";
             TypesToAdd.push_back(v->getType());
         }
         
