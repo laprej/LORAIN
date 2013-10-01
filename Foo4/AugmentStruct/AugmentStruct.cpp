@@ -96,14 +96,14 @@ namespace {
     
     /// Find common Values used by I and the Function arg[argIndex]
     /// This function returns a set (no dupes)
-    std::vector<Value *> overlap(User &I, Function *F, int argIndex=0)
+    std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
     {
         std::vector<Value *> results;
         if (usingRoss) {
             std::vector<Value *> bucket;
             std::vector<Value *>::iterator i, e;
                         
-            getUseDef(&I, bucket, F);
+            getUseDef(I, bucket, F);
             
             std::sort(bucket.begin(), bucket.end());
             i = std::unique(bucket.begin(), bucket.end());
@@ -199,6 +199,10 @@ namespace {
             instrumenter.visit(*I);
         }
 
+        if (!workList.size()) {
+            return false;
+        }
+        
         std::vector<Type *> TypesToAdd;
         for (std::vector<Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
             /// Increment the statistics
