@@ -114,6 +114,23 @@ namespace {
             i = std::unique(bucket.begin(), bucket.end());
             bucket.resize(std::distance(bucket.begin(), i));
             
+            /// If the value we load has a name and is not a global...
+            for (unsigned i = 0; i < bucket.size(); ++i) {
+                if (LoadInst *L = dyn_cast<LoadInst>(bucket[i])) {
+                    if (!L->getPointerOperand()->hasName()) {
+                        continue;
+                    }
+                    errs() << "L is named " << L->getPointerOperand()->getName() << "\n";
+                    if (isa<GlobalVariable>(L->getPointerOperand())) {
+                        errs() << "L is global";
+                    }
+                    else {
+                        /// Return the empty results vector
+                        return results;
+                    }
+                }
+            }
+            
             errs() << *I << " uses:\n";
             for (unsigned i = 0; i < bucket.size(); ++i) {
                 errs() << "[" << i << "]: " << *bucket[i] << "\n";
@@ -192,7 +209,7 @@ namespace {
                     std::vector<Value *> stateVals = overlap(valOp, F);
                     if (stateVals.size() == 0) {
                         /// Where did we get this value?  Not constructive!
-                        workList.push_back(I.getValueOperand());
+                        workList.push_back(I.getPointerOperand());
                         return;
                     }
                     /// It is constructive assignment, don't save it
