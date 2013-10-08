@@ -27,356 +27,356 @@
 using namespace llvm;
 
 namespace {
-    STATISTIC(ValsSavedToMesg, "Number of Values saved in Message struct");
+STATISTIC(ValsSavedToMesg, "Number of Values saved in Message struct");
 
-    static cl::opt<std::string> FuncToInstrument("rev-func",
-                                                 cl::desc("<func to reverse>"));
-    	
-	static cl::opt<std::string> FuncToGenerate("tgt-func",
-                                               cl::desc("<func to output>"));
+static cl::opt<std::string> FuncToInstrument("rev-func",
+                                             cl::desc("<func to reverse>"));
     
-    bool usingRoss = false;
-    
-    class MessageUpdater: public ValueMapTypeRemapper
+static cl::opt<std::string> FuncToGenerate("tgt-func",
+                                           cl::desc("<func to output>"));
+
+bool usingRoss = false;
+
+class MessageUpdater: public ValueMapTypeRemapper
+{
+public:
+    Type *remapType(Type *SrcTy)
     {
-    public:
-        Type *remapType(Type *SrcTy)
-        {
-            std::map<Type *, Type *>::iterator i, e;
-            for (i = TyMap.begin(), e = TyMap.end(); i != e; ++i) {
-                if (SrcTy == i->first) {
-                    return i->second;
-                }
-            }
-            /// We aren't overriding this type so just return it
-            return SrcTy;
-        }
-        std::map<Type *, Type *> TyMap;
-    };
-    
-    std::set<Value*> argUsers[4];
-    std::map<Value *, Value *> workList;
-    
-    /// Collect all use-defs into a container
-    void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 0) {
-        if (indent == 0) {
-            DEBUG(errs() << "uses\n");
-        }
-        
-        int uses = 0;
-        
-        for (User::op_iterator i = I->op_begin(), e = I->op_end();
-             i != e; ++i) {
-            uses++;
-            
-            Value *v = *i;
-            
-            if (Instruction *w = dyn_cast<Instruction>(v)) {
-                DEBUG(errs() << std::string(2*indent, ' '));
-                DEBUG(errs() << "outputing instruction dependent: " << *w << '\n');
-                bucket.push_back(w);
-                getUseDef(w, bucket, f, indent + 1);
-                DEBUG(errs() << std::string(2*indent, ' '));
-                DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
-            }
-            else if (Argument *a = dyn_cast<Argument>(v)) {
-                /// This should only happen with optimisation turned on
-                DEBUG(errs() << "We have an argument!\n");
-                DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
-                DEBUG(errs() << "Assuming symmetric arguments.\n");
-                bucket.push_back(a);
-                for (unsigned i = 0; i < bucket.size(); ++i) {
-                    errs() << "[" << i << "]: " << *bucket[i] << "\n";
-                }
-                errs() << "\n";
-            }
-            else {
-                DEBUG(errs() << std::string(2*indent, ' '));
-                DEBUG(errs() << "This is a " << *v->getType() << "\n");
+        std::map<Type *, Type *>::iterator i, e;
+        for (i = TyMap.begin(), e = TyMap.end(); i != e; ++i) {
+            if (SrcTy == i->first) {
+                return i->second;
             }
         }
-        DEBUG(errs() << std::string(2*indent, ' '));
-        DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
+        /// We aren't overriding this type so just return it
+        return SrcTy;
+    }
+    std::map<Type *, Type *> TyMap;
+};
+
+std::set<Value*> argUsers[4];
+std::map<Value *, Value *> workList;
+
+/// Collect all use-defs into a container
+void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 0) {
+    if (indent == 0) {
+        DEBUG(errs() << "uses\n");
     }
     
-    /// Find common Values used by I and the Function arg[argIndex]
-    /// This function returns a set (no dupes)
-    std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
-    {
-        std::vector<Value *> results;
-        if (usingRoss) {
-            std::vector<Value *> bucket;
-            std::vector<Value *>::iterator i, e;
-                        
-            getUseDef(I, bucket, F);
-            
-            std::sort(bucket.begin(), bucket.end());
-            i = std::unique(bucket.begin(), bucket.end());
-            bucket.resize(std::distance(bucket.begin(), i));
-            
-            /// If the value we load has a name and is not a global...
-            for (unsigned i = 0; i < bucket.size(); ++i) {
-                if (LoadInst *L = dyn_cast<LoadInst>(bucket[i])) {
-                    if (!L->getPointerOperand()->hasName()) {
-                        continue;
-                    }
-                    errs() << "L is named " << L->getPointerOperand()->getName() << "\n";
-                    if (isa<GlobalVariable>(L->getPointerOperand())) {
-                        errs() << "L is global";
-                    }
-                    else {
-                        /// Return the empty results vector
-                        return results;
-                    }
-                }
-            }
-            
-            errs() << *I << " uses:\n";
+    int uses = 0;
+    
+    for (User::op_iterator i = I->op_begin(), e = I->op_end();
+         i != e; ++i) {
+        uses++;
+        
+        Value *v = *i;
+        
+        if (Instruction *w = dyn_cast<Instruction>(v)) {
+            DEBUG(errs() << std::string(2*indent, ' '));
+            DEBUG(errs() << "outputing instruction dependent: " << *w << '\n');
+            bucket.push_back(w);
+            getUseDef(w, bucket, f, indent + 1);
+            DEBUG(errs() << std::string(2*indent, ' '));
+            DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
+        }
+        else if (Argument *a = dyn_cast<Argument>(v)) {
+            /// This should only happen with optimisation turned on
+            DEBUG(errs() << "We have an argument!\n");
+            DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
+            DEBUG(errs() << "Assuming symmetric arguments.\n");
+            bucket.push_back(a);
             for (unsigned i = 0; i < bucket.size(); ++i) {
                 errs() << "[" << i << "]: " << *bucket[i] << "\n";
             }
             errs() << "\n";
-            
-            errs() << "argUsers[" << argIndex << "] contains:\n";
-            for (std::set<Value*>::iterator i = argUsers[argIndex].begin(),
-                 e = argUsers[argIndex].end(); i != e; ++i) {
-                errs() << **i << "\n";
-            }
-            errs() << "\n";
-            
-            results.resize(argUsers[argIndex].size());
-            
-            i = std::set_intersection(bucket.begin(),
-                                      bucket.end(),
-                                      argUsers[argIndex].begin(),
-                                      argUsers[argIndex].end(),
-                                      results.begin());
-            results.resize(i - results.begin());
         }
-        
-        return results;
-    }
-    
-    /// Collect arg users into argUsers
-    void getArgUsers(Function *f)
-    {
-        int count = 0;
-        Function::arg_iterator i, e;
-        Value::use_iterator ui, ue, UI, UE;
-        
-        /// For each argument
-        for (i = f->arg_begin(), e = f->arg_end(); i != e; ++i) {
-            /// For each use of arg[i]
-            for (ui = i->use_begin(), ue = i->use_end(); ui != ue; ++ui) {
-                if (StoreInst *st = dyn_cast<StoreInst>(*ui)) {
-                    Value *v = st->getPointerOperand();
-                    /// For each of the users of the pointer operand
-                    for (UI = v->use_begin(), UE = v->use_end(); UI != UE; ++UI) {
-                        if (Instruction *inst = dyn_cast<Instruction>(*UI)) {
-                            argUsers[count].insert(inst);
-                            DEBUG(errs() << "Put (" << *inst << ") into bucket " << count << "\n");
-                        }
-                    }
-                }
-            }
-            count++;
+        else {
+            DEBUG(errs() << std::string(2*indent, ' '));
+            DEBUG(errs() << "This is a " << *v->getType() << "\n");
         }
     }
-    
-    class Instrumenter : public InstVisitor<Instrumenter>
-    {
-        Module &M;
-        
-    public:
-        Instrumenter(Module &mod): M(mod) {}
-        
-        /// Create the list of types that are destructively assigned and
-        /// require state-saving be done so they can be restored
-        void visitStoreInst(StoreInst &I) {
-            Function *F = I.getParent()->getParent();
-            
-            /// Are we storing into the LP state?
-            if (User *ptrOp = dyn_cast<User>(I.getPointerOperand())) {
-                std::vector<Value *> stateStores = overlap(ptrOp, F);
-                /// If not, just return
-                if (stateStores.size() == 0) {
-                    return;
-                }
-                
-                /// OK, we're storing into the LP state.  Figure out whether
-                /// it's constructive or destructive
-                if (User *valOp = dyn_cast<User>(I.getValueOperand())) {
-                    std::vector<Value *> stateVals = overlap(valOp, F);
-                    if (stateVals.size() == 0) {
-                        /// Where did we get this value?  Not constructive!
-                        errs() << "Adding " << *I.getPointerOperand() << " to our list of saves.\n";
-                        if (GetElementPtrInst *G = dyn_cast<GetElementPtrInst>(I.getPointerOperand())) {
-                            /// We're restricting things here:
-                            /// Assume that we're accessing our state struct
-                            /// Which implies op0 is the struct, op1 is 0,
-                            /// and op2 is the index we're overwriting.
-                            Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
-                            assert(G->getOperand(1) == zero);
-                            workList[G->getOperand(2)] = I.getPointerOperand();
-                        }
-                        return;
-                    }
-                    /// It is constructive assignment, don't save it
-                    return;
-                }
-            }
-            
-            /// Do some checks in here to determine if we are doing
-            /// "destructive" assignment or not.  Mainly, check if our
-            /// StoreInst references the same address for a Load
-            // workList.push_back(I.getValueOperand());
-        }
-    };
-    
-    bool AugmentStruct::runOnModule(Module &M)
-    {
-        if (M.getGlobalVariable("__USING_ROSS")) {
-            errs() << "ROSS Mode assumes functions have appropriate arguments\n";
-            usingRoss = true;
-        }
-        
-        if (!usingRoss)
-            return false;
-        
-        // Find the target function
-        Function *F = M.getFunction(FuncToInstrument);
-        
-        if (!F) {
-            errs() << FuncToInstrument << " not found\n";
-            return false;
-        }
-        
-        getArgUsers(F);
-        
-        // Using a InstVisitor, find all Stores
-        Instrumenter instrumenter(M);
-        for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
-            instrumenter.visit(*I);
-        }
+    DEBUG(errs() << std::string(2*indent, ' '));
+    DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
+}
 
-        if (!workList.size()) {
-            return false;
-        }
+/// Find common Values used by I and the Function arg[argIndex]
+/// This function returns a set (no dupes)
+std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
+{
+    std::vector<Value *> results;
+    if (usingRoss) {
+        std::vector<Value *> bucket;
+        std::vector<Value *>::iterator i, e;
+                    
+        getUseDef(I, bucket, F);
         
-        std::vector<Value *> valuesToSave;
+        std::sort(bucket.begin(), bucket.end());
+        i = std::unique(bucket.begin(), bucket.end());
+        bucket.resize(std::distance(bucket.begin(), i));
         
-        std::vector<Type *> TypesToAdd;
-        for (std::map<Value*, Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
-            /// Increment the statistics
-            ++ValsSavedToMesg;
-            
-            Value *v = i->second;
-            if (v->hasName()) {
-                DEBUG(errs() << "Adding " << v->getName() << " to message\n");
+        /// If the value we load has a name and is not a global...
+        for (unsigned i = 0; i < bucket.size(); ++i) {
+            if (LoadInst *L = dyn_cast<LoadInst>(bucket[i])) {
+                if (!L->getPointerOperand()->hasName()) {
+                    continue;
+                }
+                errs() << "L is named " << L->getPointerOperand()->getName() << "\n";
+                if (isa<GlobalVariable>(L->getPointerOperand())) {
+                    errs() << "L is global";
+                }
+                else {
+                    /// Return the empty results vector
+                    return results;
+                }
             }
-            else {
-                DEBUG(errs() << "Adding unnamed type " << *v->getType() << " to message\n");
+        }
+        
+        errs() << *I << " uses:\n";
+        for (unsigned i = 0; i < bucket.size(); ++i) {
+            errs() << "[" << i << "]: " << *bucket[i] << "\n";
+        }
+        errs() << "\n";
+        
+        errs() << "argUsers[" << argIndex << "] contains:\n";
+        for (std::set<Value*>::iterator i = argUsers[argIndex].begin(),
+             e = argUsers[argIndex].end(); i != e; ++i) {
+            errs() << **i << "\n";
+        }
+        errs() << "\n";
+        
+        results.resize(argUsers[argIndex].size());
+        
+        i = std::set_intersection(bucket.begin(),
+                                  bucket.end(),
+                                  argUsers[argIndex].begin(),
+                                  argUsers[argIndex].end(),
+                                  results.begin());
+        results.resize(i - results.begin());
+    }
+    
+    return results;
+}
+
+/// Collect arg users into argUsers
+void getArgUsers(Function *f)
+{
+    int count = 0;
+    Function::arg_iterator i, e;
+    Value::use_iterator ui, ue, UI, UE;
+    
+    /// For each argument
+    for (i = f->arg_begin(), e = f->arg_end(); i != e; ++i) {
+        /// For each use of arg[i]
+        for (ui = i->use_begin(), ue = i->use_end(); ui != ue; ++ui) {
+            if (StoreInst *st = dyn_cast<StoreInst>(*ui)) {
+                Value *v = st->getPointerOperand();
+                /// For each of the users of the pointer operand
+                for (UI = v->use_begin(), UE = v->use_end(); UI != UE; ++UI) {
+                    if (Instruction *inst = dyn_cast<Instruction>(*UI)) {
+                        argUsers[count].insert(inst);
+                        DEBUG(errs() << "Put (" << *inst << ") into bucket " << count << "\n");
+                    }
+                }
             }
-            errs() << "Which has type " << *v->getType() << "\n";
-            assert(isa<PointerType>(v->getType()));
-            Type *Ty = v->getType()->getPointerElementType();
-            assert(Ty);
-            TypesToAdd.push_back(Ty);
+        }
+        count++;
+    }
+}
+
+class Instrumenter : public InstVisitor<Instrumenter>
+{
+    Module &M;
+    
+public:
+    Instrumenter(Module &mod): M(mod) {}
+    
+    /// Create the list of types that are destructively assigned and
+    /// require state-saving be done so they can be restored
+    void visitStoreInst(StoreInst &I) {
+        Function *F = I.getParent()->getParent();
+        
+        /// Are we storing into the LP state?
+        if (User *ptrOp = dyn_cast<User>(I.getPointerOperand())) {
+            std::vector<Value *> stateStores = overlap(ptrOp, F);
+            /// If not, just return
+            if (stateStores.size() == 0) {
+                return;
+            }
             
-            /// Save the index into the LP state that we're overwriting
-            valuesToSave.push_back(i->first);
+            /// OK, we're storing into the LP state.  Figure out whether
+            /// it's constructive or destructive
+            if (User *valOp = dyn_cast<User>(I.getValueOperand())) {
+                std::vector<Value *> stateVals = overlap(valOp, F);
+                if (stateVals.size() == 0) {
+                    /// Where did we get this value?  Not constructive!
+                    errs() << "Adding " << *I.getPointerOperand() << " to our list of saves.\n";
+                    if (GetElementPtrInst *G = dyn_cast<GetElementPtrInst>(I.getPointerOperand())) {
+                        /// We're restricting things here:
+                        /// Assume that we're accessing our state struct
+                        /// Which implies op0 is the struct, op1 is 0,
+                        /// and op2 is the index we're overwriting.
+                        Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+                        assert(G->getOperand(1) == zero);
+                        workList[G->getOperand(2)] = I.getPointerOperand();
+                    }
+                    return;
+                }
+                /// It is constructive assignment, don't save it
+                return;
+            }
         }
         
-        MDNode *vals = MDNode::get(getGlobalContext(), valuesToSave);
-        NamedMDNode *nmd = M.getOrInsertNamedMetadata("jml.functionPrologue");
-        nmd->addOperand(vals);
+        /// Do some checks in here to determine if we are doing
+        /// "destructive" assignment or not.  Mainly, check if our
+        /// StoreInst references the same address for a Load
+        // workList.push_back(I.getValueOperand());
+    }
+};
+
+bool AugmentStruct::runOnModule(Module &M)
+{
+    if (M.getGlobalVariable("__USING_ROSS")) {
+        errs() << "ROSS Mode assumes functions have appropriate arguments\n";
+        usingRoss = true;
+    }
+    
+    if (!usingRoss)
+        return false;
+    
+    // Find the target function
+    Function *F = M.getFunction(FuncToInstrument);
+    
+    if (!F) {
+        errs() << FuncToInstrument << " not found\n";
+        return false;
+    }
+    
+    getArgUsers(F);
+    
+    // Using a InstVisitor, find all Stores
+    Instrumenter instrumenter(M);
+    for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+        instrumenter.visit(*I);
+    }
+
+    if (!workList.size()) {
+        return false;
+    }
+    
+    std::vector<Value *> valuesToSave;
+    
+    std::vector<Type *> TypesToAdd;
+    for (std::map<Value*, Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
+        /// Increment the statistics
+        ++ValsSavedToMesg;
         
-        std::vector<Argument *> funArgsFrom;
-        for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
-            funArgsFrom.push_back(I);
+        Value *v = i->second;
+        if (v->hasName()) {
+            DEBUG(errs() << "Adding " << v->getName() << " to message\n");
         }
-        
-        Type *Ty = 0;
-        
-        FunctionType *funTypeFrom = F->getFunctionType();
-        
-        std::vector<Type *> funTypeArgsFrom(funTypeFrom->param_begin(),
-                                            funTypeFrom->param_end());
-        Ty = funTypeArgsFrom[2];
-        
+        else {
+            DEBUG(errs() << "Adding unnamed type " << *v->getType() << " to message\n");
+        }
+        errs() << "Which has type " << *v->getType() << "\n";
+        assert(isa<PointerType>(v->getType()));
+        Type *Ty = v->getType()->getPointerElementType();
         assert(Ty);
-        assert(isa<PointerType>(Ty));
+        TypesToAdd.push_back(Ty);
         
-        Ty = Ty->getPointerElementType();
-        
-        assert(isa<StructType>(Ty));
-        
-        StructType *fromStruct = cast<StructType>(Ty);
-        PointerType *fromStructPtr = PointerType::getUnqual(fromStruct);
-        PointerType *fromStructPtrPtr = PointerType::getUnqual(fromStructPtr);
-        
-        std::vector<Type *> structItems(fromStruct->element_begin(),
-                                        fromStruct->element_end());
-        /// Add the other items to the struct we're about to create
-        structItems.insert(structItems.end(), TypesToAdd.begin(), TypesToAdd.end());
-        
-        StructType *toStruct = StructType::create(structItems, fromStruct->getName(), fromStruct->isPacked());
-        PointerType *toStructPtr = PointerType::getUnqual(toStruct);
-        PointerType *toStructPtrPtr = PointerType::getUnqual(toStructPtr);
-        
-        Argument *newArg = new Argument(toStructPtr, funArgsFrom[2]->getName(), 0);
-        
-        DEBUG(errs() << "Created new Argument " << newArg->getName() << "\n");
-        
-        std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
-        funTypeArgsTo[2] = toStructPtr;
-        
-        std::vector<Argument *> funArgsTo(funArgsFrom.begin(), funArgsFrom.end());
-        funArgsTo[2] = newArg;
-        
-        FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, F->getFunctionType()->isVarArg());
-        
-        Function *newFun = Function::Create(funTypeTo, F->getLinkage(), F->getName(), &M);
-        
-        ValueToValueMapTy VMap;
-        Function::arg_iterator DestI = newFun->arg_begin();
-        
-        for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
-             I != E; ++I) {
-            DestI->setName(I->getName());
-            VMap[I] = DestI++;
-        }
-        
-        SmallVector<ReturnInst*, 4> Returns;
-        
-        MessageUpdater TyMapper;
-        
-        TyMapper.TyMap[fromStruct] = toStruct;
-        TyMapper.TyMap[fromStructPtr] = toStructPtr;
-        TyMapper.TyMap[fromStructPtrPtr] = toStructPtrPtr;
-
-        CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
-        
-        while (!F->use_empty()) {
-            User *U = F->use_back();
-            DEBUG(errs() << "Use of F: " << *U << "\n");
-            DEBUG(errs() << "Type: " << *U->getType() << "\n");
-            if (Constant *C = dyn_cast<Constant>(U)) {
-                /// replaceAllUsesWith will fail because the function types are
-                /// different.  Do it this way instead
-                C->replaceUsesOfWithOnConstant(F, newFun, 0);
-            }
-        }
-        
-        newFun->takeName(F);
-
-        F->dropAllReferences();
-        F->eraseFromParent();
-        
-        return true;
+        /// Save the index into the LP state that we're overwriting
+        valuesToSave.push_back(i->first);
     }
     
-    char AugmentStruct::ID = 0;
-    static RegisterPass<AugmentStruct> A ("aug-struct",
-                                          "Augment Message Struct");
+    MDNode *vals = MDNode::get(getGlobalContext(), valuesToSave);
+    NamedMDNode *nmd = M.getOrInsertNamedMetadata("jml.functionPrologue");
+    nmd->addOperand(vals);
+    
+    std::vector<Argument *> funArgsFrom;
+    for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
+        funArgsFrom.push_back(I);
+    }
+    
+    Type *Ty = 0;
+    
+    FunctionType *funTypeFrom = F->getFunctionType();
+    
+    std::vector<Type *> funTypeArgsFrom(funTypeFrom->param_begin(),
+                                        funTypeFrom->param_end());
+    Ty = funTypeArgsFrom[2];
+    
+    assert(Ty);
+    assert(isa<PointerType>(Ty));
+    
+    Ty = Ty->getPointerElementType();
+    
+    assert(isa<StructType>(Ty));
+    
+    StructType *fromStruct = cast<StructType>(Ty);
+    PointerType *fromStructPtr = PointerType::getUnqual(fromStruct);
+    PointerType *fromStructPtrPtr = PointerType::getUnqual(fromStructPtr);
+    
+    std::vector<Type *> structItems(fromStruct->element_begin(),
+                                    fromStruct->element_end());
+    /// Add the other items to the struct we're about to create
+    structItems.insert(structItems.end(), TypesToAdd.begin(), TypesToAdd.end());
+    
+    StructType *toStruct = StructType::create(structItems, fromStruct->getName(), fromStruct->isPacked());
+    PointerType *toStructPtr = PointerType::getUnqual(toStruct);
+    PointerType *toStructPtrPtr = PointerType::getUnqual(toStructPtr);
+    
+    Argument *newArg = new Argument(toStructPtr, funArgsFrom[2]->getName(), 0);
+    
+    DEBUG(errs() << "Created new Argument " << newArg->getName() << "\n");
+    
+    std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
+    funTypeArgsTo[2] = toStructPtr;
+    
+    std::vector<Argument *> funArgsTo(funArgsFrom.begin(), funArgsFrom.end());
+    funArgsTo[2] = newArg;
+    
+    FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, F->getFunctionType()->isVarArg());
+    
+    Function *newFun = Function::Create(funTypeTo, F->getLinkage(), F->getName(), &M);
+    
+    ValueToValueMapTy VMap;
+    Function::arg_iterator DestI = newFun->arg_begin();
+    
+    for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
+         I != E; ++I) {
+        DestI->setName(I->getName());
+        VMap[I] = DestI++;
+    }
+    
+    SmallVector<ReturnInst*, 4> Returns;
+    
+    MessageUpdater TyMapper;
+    
+    TyMapper.TyMap[fromStruct] = toStruct;
+    TyMapper.TyMap[fromStructPtr] = toStructPtr;
+    TyMapper.TyMap[fromStructPtrPtr] = toStructPtrPtr;
+
+    CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
+    
+    while (!F->use_empty()) {
+        User *U = F->use_back();
+        DEBUG(errs() << "Use of F: " << *U << "\n");
+        DEBUG(errs() << "Type: " << *U->getType() << "\n");
+        if (Constant *C = dyn_cast<Constant>(U)) {
+            /// replaceAllUsesWith will fail because the function types are
+            /// different.  Do it this way instead
+            C->replaceUsesOfWithOnConstant(F, newFun, 0);
+        }
+    }
+    
+    newFun->takeName(F);
+
+    F->dropAllReferences();
+    F->eraseFromParent();
+    
+    return true;
+}
+
+char AugmentStruct::ID = 0;
+static RegisterPass<AugmentStruct> A ("aug-struct",
+                                      "Augment Message Struct");
 }
