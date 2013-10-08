@@ -276,7 +276,10 @@ namespace {
                 DEBUG(errs() << "Adding unnamed type " << *v->getType() << " to message\n");
             }
             errs() << "Which has type " << *v->getType() << "\n";
-            TypesToAdd.push_back(v->getType());
+            assert(isa<PointerType>(v->getType()));
+            Type *Ty = v->getType()->getPointerElementType();
+            assert(Ty);
+            TypesToAdd.push_back(Ty);
         }
         
         std::vector<Argument *> funArgsFrom;
