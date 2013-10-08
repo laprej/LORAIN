@@ -85,10 +85,6 @@ void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 
             DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
             DEBUG(errs() << "Assuming symmetric arguments.\n");
             bucket.push_back(a);
-            for (unsigned i = 0; i < bucket.size(); ++i) {
-                errs() << "[" << i << "]: " << *bucket[i] << "\n";
-            }
-            errs() << "\n";
         }
         else {
             DEBUG(errs() << std::string(2*indent, ' '));
@@ -120,9 +116,9 @@ std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
                 if (!L->getPointerOperand()->hasName()) {
                     continue;
                 }
-                errs() << "L is named " << L->getPointerOperand()->getName() << "\n";
+                DEBUG(errs() << "L is named " << L->getPointerOperand()->getName() << "\n");
                 if (isa<GlobalVariable>(L->getPointerOperand())) {
-                    errs() << "L is global";
+                    DEBUG(errs() << "L is global");
                 }
                 else {
                     /// Return the empty results vector
@@ -130,19 +126,6 @@ std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
                 }
             }
         }
-        
-        errs() << *I << " uses:\n";
-        for (unsigned i = 0; i < bucket.size(); ++i) {
-            errs() << "[" << i << "]: " << *bucket[i] << "\n";
-        }
-        errs() << "\n";
-        
-        errs() << "argUsers[" << argIndex << "] contains:\n";
-        for (std::set<Value*>::iterator i = argUsers[argIndex].begin(),
-             e = argUsers[argIndex].end(); i != e; ++i) {
-            errs() << **i << "\n";
-        }
-        errs() << "\n";
         
         results.resize(argUsers[argIndex].size());
         
@@ -209,7 +192,6 @@ public:
                 std::vector<Value *> stateVals = overlap(valOp, F);
                 if (stateVals.size() == 0) {
                     /// Where did we get this value?  Not constructive!
-                    errs() << "Adding " << *I.getPointerOperand() << " to our list of saves.\n";
                     if (GetElementPtrInst *G = dyn_cast<GetElementPtrInst>(I.getPointerOperand())) {
                         /// We're restricting things here:
                         /// Assume that we're accessing our state struct
@@ -277,7 +259,7 @@ bool AugmentStruct::runOnModule(Module &M)
         else {
             DEBUG(errs() << "Adding unnamed type " << *v->getType() << " to message\n");
         }
-        errs() << "Which has type " << *v->getType() << "\n";
+        DEBUG(errs() << "Which has type " << *v->getType() << "\n");
         assert(isa<PointerType>(v->getType()));
         Type *Ty = v->getType()->getPointerElementType();
         assert(Ty);
