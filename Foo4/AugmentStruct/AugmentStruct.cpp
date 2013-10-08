@@ -55,7 +55,7 @@ namespace {
     };
     
     std::set<Value*> argUsers[4];
-    std::vector<Value *> workList;
+    std::map<Value *, Value *> workList;
     
     /// Collect all use-defs into a container
     void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 0) {
@@ -217,10 +217,8 @@ namespace {
                             /// and op2 is the index we're overwriting.
                             Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
                             assert(G->getOperand(1) == zero);
-                            errs() << "I should probably save item at index " << *G->getOperand(2) << "\n";
-                            errs() << "Which should be a " << *I.getPointerOperand()->getType() << "\n";
+                            workList[G->getOperand(2)] = I.getPointerOperand();
                         }
-                        //workList.push_back(std::make_pair(G->getOperand(2), I.getPointerOperand()));
                         return;
                     }
                     /// It is constructive assignment, don't save it
@@ -266,11 +264,11 @@ namespace {
         }
         
         std::vector<Type *> TypesToAdd;
-        for (std::vector<Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
+        for (std::map<Value*, Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
             /// Increment the statistics
             ++ValsSavedToMesg;
             
-            Value *v = *i;
+            Value *v = i->second;
             if (v->hasName()) {
                 DEBUG(errs() << "Adding " << v->getName() << " to message\n");
             }
