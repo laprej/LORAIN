@@ -209,7 +209,18 @@ namespace {
                     std::vector<Value *> stateVals = overlap(valOp, F);
                     if (stateVals.size() == 0) {
                         /// Where did we get this value?  Not constructive!
-                        workList.push_back(I.getPointerOperand());
+                        errs() << "Adding " << *I.getPointerOperand() << " to our list of saves.\n";
+                        if (GetElementPtrInst *G = dyn_cast<GetElementPtrInst>(I.getPointerOperand())) {
+                            /// We're restricting things here:
+                            /// Assume that we're accessing our state struct
+                            /// Which implies op0 is the struct, op1 is 0,
+                            /// and op2 is the index we're overwriting.
+                            Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
+                            assert(G->getOperand(1) == zero);
+                            errs() << "I should probably save item at index " << *G->getOperand(2) << "\n";
+                            errs() << "Which should be a " << *I.getPointerOperand()->getType() << "\n";
+                        }
+                        //workList.push_back(std::make_pair(G->getOperand(2), I.getPointerOperand()));
                         return;
                     }
                     /// It is constructive assignment, don't save it
