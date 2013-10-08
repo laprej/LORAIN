@@ -263,6 +263,8 @@ namespace {
             return false;
         }
         
+        std::vector<Value *> valuesToSave;
+        
         std::vector<Type *> TypesToAdd;
         for (std::map<Value*, Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
             /// Increment the statistics
@@ -280,7 +282,14 @@ namespace {
             Type *Ty = v->getType()->getPointerElementType();
             assert(Ty);
             TypesToAdd.push_back(Ty);
+            
+            /// Save the index into the LP state that we're overwriting
+            valuesToSave.push_back(i->first);
         }
+        
+        MDNode *vals = MDNode::get(getGlobalContext(), valuesToSave);
+        NamedMDNode *nmd = M.getOrInsertNamedMetadata("jml.functionPrologue");
+        nmd->addOperand(vals);
         
         std::vector<Argument *> funArgsFrom;
         for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E; ++I) {
