@@ -52,8 +52,9 @@ fi
 clang -emit-llvm $1.c -c -o $1.bc
 
 SCLIB="/Users/laprej/temp/llvm-3.2-install/lib/BCGEPs.dylib"
-echo "opt -load $SCLIB -break-constgeps -lowerswitch -reg2mem < $1.bc > $1-nogeps.bc"
-opt -load $SCLIB -break-constgeps -lowerswitch -reg2mem < $1.bc > $1-nogeps.bc
+AUGLIB="/Users/laprej/temp/llvm-3.2-install/lib/aug-struct.dylib"
+echo "opt -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -reg2mem -aug-struct -ins-func=$2 < $1.bc > $1-nogeps.bc"
+opt -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -reg2mem -aug-struct -ins-func=$2 < $1.bc > $1-nogeps.bc
 
 echo "cp $1-nogeps.bc $1.bc"
 cp $1-nogeps.bc $1.bc

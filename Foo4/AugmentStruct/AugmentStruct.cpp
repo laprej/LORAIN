@@ -29,11 +29,8 @@ using namespace llvm;
 namespace {
 STATISTIC(ValsSavedToMesg, "Number of Values saved in Message struct");
 
-static cl::opt<std::string> FuncToInstrument("rev-func",
-                                             cl::desc("<func to reverse>"));
-    
-static cl::opt<std::string> FuncToGenerate("tgt-func",
-                                           cl::desc("<func to output>"));
+static cl::opt<std::string> FuncToInstrument("ins-func",
+                                             cl::desc("<func to instrument>"));
 
 bool usingRoss = false;
 
@@ -218,7 +215,7 @@ public:
 bool AugmentStruct::runOnModule(Module &M)
 {
     if (M.getGlobalVariable("__USING_ROSS")) {
-        errs() << "ROSS Mode assumes functions have appropriate arguments\n";
+        DEBUG(errs() << "ROSS Mode assumes functions have appropriate arguments\n");
         usingRoss = true;
     }
     
