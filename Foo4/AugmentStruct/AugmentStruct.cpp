@@ -34,6 +34,8 @@ static cl::opt<std::string> FuncToInstrument("ins-func",
 
 bool usingRoss = false;
 
+const std::string jmlAugId = "jml.functionPrologue";
+
 class MessageUpdater: public ValueMapTypeRemapper
 {
 public:
@@ -267,7 +269,7 @@ bool AugmentStruct::runOnModule(Module &M)
     }
     
     MDNode *vals = MDNode::get(getGlobalContext(), valuesToSave);
-    NamedMDNode *nmd = M.getOrInsertNamedMetadata("jml.functionPrologue");
+    NamedMDNode *nmd = M.getOrInsertNamedMetadata(jmlAugId);
     nmd->addOperand(vals);
     
     std::vector<Argument *> funArgsFrom;
