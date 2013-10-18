@@ -156,7 +156,7 @@ namespace {
                     for (UI = v->use_begin(), UE = v->use_end(); UI != UE; ++UI) {
                         if (Instruction *inst = dyn_cast<Instruction>(*UI)) {
                             argUsers[count].insert(inst);
-                            errs() << "Put (" << *inst << ") into bucket " << count << "\n";
+                            DEBUG(errs() << "Put (" << *inst << ") into bucket " << count << "\n");
                         }
                     }
                 }
@@ -188,9 +188,9 @@ namespace {
                 DEBUG(errs() << "bucket now has " << bucket.size() << " elements\n");
             }
             else if (Argument *a = dyn_cast<Argument>(v)) {
-                errs() << "We have an argument!\n";
-                errs() << "It's arg no. " << a->getArgNo() << "\n";
-                errs() << "Assuming symmetric arguments.\n";
+                DEBUG(errs() << "We have an argument!\n");
+                DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
+                DEBUG(errs() << "Assuming symmetric arguments.\n");
                 
                 f->getArgumentList();
                 Function::arg_iterator fi, fe;
@@ -346,12 +346,12 @@ namespace {
             if (LI->getLoopDepth(successor)) {
                 return;
             }
-            errs() << "splitUpEdges(S=" << successor->getName() << ")\n";
+            DEBUG(errs() << "splitUpEdges(S=" << successor->getName() << ")\n");
             Type *Ty = IntegerType::get(getGlobalContext(), 32);
             std::string Name("backwards_switch_");
             Name += successor->getName();
             Constant *C = M.getOrInsertGlobal(Name.c_str(), Ty);
-            errs() << "Creating " << Name << " metadata\n";
+            DEBUG(errs() << "Creating " << Name << " metadata\n");
             assert(isa<GlobalVariable>(C) && "Incorrectly typed anchor?");
             GlobalVariable *GV = cast<GlobalVariable>(C);
             
@@ -366,7 +366,7 @@ namespace {
             IRBuilder<> temp(getGlobalContext());
             GV->setInitializer(temp.getInt32(0));
             
-            errs() << "Splitting edges.\n";
+            DEBUG(errs() << "Splitting edges.\n");
             int i;
             std::vector<Value *> blocks;
             pred_iterator pi, pe;
@@ -380,14 +380,14 @@ namespace {
                 
                 /// We use zero to be a "reset" bf so we have to add 1 to numPreds
                 int numBits = lrint(log2(numPreds + 1));
-                errs() << numPreds << " pred edges require " << numBits << " bits\n";
+                DEBUG(errs() << numPreds << " pred edges require " << numBits << " bits\n");
                 uint32_t mask = 0;
                 mask = (1 << numBits) - 1;
                 mask <<= bitFieldCount;
-                errs() << "Mask should be: ";
-                errs().write_hex(mask) << "\n";
-                errs() << "Flipped, that is ";
-                errs().write_hex(~mask) << "\n";
+                DEBUG(errs() << "Mask should be: ");
+                DEBUG(errs().write_hex(mask) << "\n");
+                DEBUG(errs() << "Flipped, that is ");
+                DEBUG(errs().write_hex(~mask) << "\n");
                 
                 for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
                     BasicBlock *b = llvm::SplitEdge(*pi, successor, h);
@@ -521,7 +521,7 @@ namespace {
             /// We don't need a bitfield, it's all controlled by the counter.
             /// From the loop header, we can get to the first block in the loop
             if (LI->isLoopHeader(BB)) {
-                errs() << "LOOP HEADER\n\n";
+                DEBUG(errs() << "LOOP HEADER\n\n");
                 
                 StringRef sr;
                 
@@ -556,7 +556,7 @@ namespace {
             std::vector<Value *> results = overlap(I);
             if (usingRoss && !results.size()) {
                 /// We have no overlap w/ arg0 (LP state), don't reverse this
-                errs() << "Storing to non-LP state variable\n";
+                DEBUG(errs() << "Storing to non-LP state variable\n");
                 Value *v = cast<Value>(&I);
                 markJML(v);
                 
@@ -591,7 +591,7 @@ namespace {
                 
                 Argument *newArg = new Argument(toStructPtr, funArgsFrom[2]->getName(), 0);
                 
-                errs() << "Created new Argument " << newArg->getName() << "\n";
+                DEBUG(errs() << "Created new Argument " << newArg->getName() << "\n");
                 
                 std::vector<Type *> funTypeArgsTo(funTypeArgsFrom.begin(), funTypeArgsFrom.end());
                 funTypeArgsTo[2] = toStructPtr;
@@ -617,17 +617,17 @@ namespace {
 
             /// These are the cases for "destructive" assignment
             if (LoadInst *L = dyn_cast<LoadInst>(I.getValueOperand())) {
-                errs() << *L << "\n";
+                DEBUG(errs() << *L << "\n");
             }
             if (CallInst *C = dyn_cast<CallInst>(I.getValueOperand())) {
-                errs() << *C << "\n";
+                DEBUG(errs() << *C << "\n");
             }
             if (Constant *C = dyn_cast<Constant>(I.getValueOperand())) {
-                errs() << "Assigning a Constant: " << *C << "\n";
+                DEBUG(errs() << "Assigning a Constant: " << *C << "\n");
                 
                 Type *ty = C->getType();
                 
-                errs() << "We'll have to make space for a " << *ty << "\n";
+                DEBUG(errs() << "We'll have to make space for a " << *ty << "\n");
                 GlobalVariable *gvar_for_constant;
                 /// GlobalVariable ctor - If a parent module is specified, the global is
                 /// automatically inserted into the end of the specified modules global list.
@@ -668,9 +668,9 @@ namespace {
                         Value *v = *i;
 
                         if (Argument *a = dyn_cast<Argument>(v)) {
-                            errs() << "We have an argument!\n";
-                            errs() << "It's arg no. " << a->getArgNo() << "\n";
-                            errs() << "Assuming symmetric arguments.\n";
+                            DEBUG(errs() << "We have an argument!\n");
+                            DEBUG(errs() << "It's arg no. " << a->getArgNo() << "\n");
+                            DEBUG(errs() << "Assuming symmetric arguments.\n");
 
                             args.push_back(s);
                             markJML(s);
@@ -776,8 +776,8 @@ namespace {
             
             handleDeps(I);
             
-            errs() << "Converting " << *I.getSrcTy() << " to ";
-            errs() << *I.getDestTy() << "\n";
+            DEBUG(errs() << "Converting " << *I.getSrcTy() << " to ");
+            DEBUG(errs() << *I.getDestTy() << "\n");
             
             Value *value = I.getOperand(0);
             value = lookupNotNull(value);
@@ -926,8 +926,8 @@ namespace {
                     uint32_t mask = 0;
                     mask = (1 << numBits) - 1;
                     mask <<= bfc;
-                    errs() << "Mask should be: ";
-                    errs().write_hex(mask) << "\n";
+                    DEBUG(errs() << "Mask should be: ");
+                    DEBUG(errs().write_hex(mask) << "\n");
 
                     Value *v = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(1), M, F);
                     assert(v && "nothing was returned");
@@ -1079,7 +1079,7 @@ namespace {
 
                 handleDeps(I);
 
-                errs() << "We need to reverse the RNG\n";
+                DEBUG(errs() << "We need to reverse the RNG\n");
                 // Fortunately, all the rng functions pass the tw_rng_stream as their first param
                 Value *G = I.getArgOperand(0);
                 Function *reverse_rng = M.getFunction("rng_gen_reverse_val");
@@ -1091,7 +1091,7 @@ namespace {
             /// At some point in the future, we may switch this with a zero
             /// value.  For now, this is the quickest way.
             if (str == "tw_now") {
-                errs() << "Calling tw_now()\n";
+                DEBUG(errs() << "Calling tw_now()\n");
 
                 handleDeps(I);
 
@@ -1384,21 +1384,21 @@ namespace {
             std::vector<BasicBlock *> fifo;
             
             unsigned sccNum = 0;
-            errs() << "SCCs for Function " << ForwardFunc->getName() << " in PostOrder:";
+            DEBUG(errs() << "SCCs for Function " << ForwardFunc->getName() << " in PostOrder:");
             for (scc_iterator<Function*> SCCI = scc_begin(ForwardFunc),
                  E = scc_end(ForwardFunc); SCCI != E; ++SCCI) {
                 std::vector<BasicBlock*> &nextSCC = *SCCI;
-                errs() << "\nSCC #" << ++sccNum << " : ";
+                DEBUG(errs() << "\nSCC #" << ++sccNum << " : ");
                 for (std::vector<BasicBlock*>::iterator I = nextSCC.begin(),
                      E = nextSCC.end(); I != E; ++I) {
-                    errs() << (*I)->getName() << ", ";
+                    DEBUG(errs() << (*I)->getName() << ", ");
                     BasicBlock *foobar = *I;
                     fifo.push_back(foobar);
                 }
                 if (nextSCC.size() == 1 && SCCI.hasLoop())
-                    errs() << " (Has self-loop).";
+                    DEBUG(errs() << " (Has self-loop).");
             }
-            errs() << "\n";
+            DEBUG(errs() << "\n");
                         
             for (unsigned int i = 0; i < fifo.size(); ++i) {
                 DEBUG(errs() << "Looking at " << fifo[i]->getName() << "\n");
