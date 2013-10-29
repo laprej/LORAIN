@@ -16,7 +16,6 @@ if [ -d "$DIRECTORY" ]; then
 #    echo $PATH
 fi
 
-#DIRECTORY="/Users/jlapre/temp/llvm-gcc/bin"
 DIRECTORY="/Users/laprej/temp/clang+llvm-3.2-x86_64-apple-darwin11/bin"
 
 if [ -d "$DIRECTORY" ]; then
@@ -32,14 +31,6 @@ if [ -d "$DIRECTORY" ]; then
 #    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
     LIB="/Users/laprej/temp/llvm-3.2-install/lib/LLVMFoo4.dylib"
-#    echo $PATH
-fi
-
-DIRECTORY="/Users/laprej/temp/llvm-gcc/bin"
-
-if [ -d "$DIRECTORY" ]; then
-#    echo "$DIRECTORY found"
-    export PATH="$DIRECTORY":$PATH
 #    echo $PATH
 fi
 
