@@ -433,7 +433,7 @@ namespace {
             nmd->addOperand(switchPaths);
         }
         
-        StringRef insertCounter(BasicBlock *bb)
+        std::string insertCounter(BasicBlock *bb)
         {
             // Load
             // Increment
@@ -451,7 +451,7 @@ namespace {
 			//const Type *newGlobal = IntegerType::get(I.getContext(), 32);
 			//Value *l = M.getOrInsertGlobal("bf", newGlobal);
             
-            StringRef bf = newBitFieldName("ctr");
+            std::string bf = newBitFieldName("ctr");
 			
 			Value *l = insertBitField(bf);
 			markJML(l);
@@ -485,7 +485,7 @@ namespace {
             return bf;
         }
         
-        void instrumentLoopHeader(BasicBlock *BB, StringRef &sr)
+        void instrumentLoopHeader(BasicBlock *BB, std::string sr)
         {
             Function *ForwardFunc = M.getFunction(FuncToInstrument);
             LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
@@ -523,7 +523,7 @@ namespace {
             if (LI->isLoopHeader(BB)) {
                 DEBUG(errs() << "LOOP HEADER\n\n");
                 
-                StringRef sr;
+                std::string sr;
                 
                 BasicBlock *latch = LI->getLoopFor(BB)->getLoopLatch();
                 sr = insertCounter(latch);
