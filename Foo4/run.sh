@@ -48,7 +48,7 @@ echo "opt -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -reg2mem -aug
 opt -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -reg2mem -aug-struct -ins-func=$2 < $1.bc > $1-nogeps.bc
 
 echo "cp $1-nogeps.bc $1.bc"
-cp $1-nogeps.bc $1.bc
+mv $1-nogeps.bc $1.bc
 
 llvm-dis $1.bc
 
