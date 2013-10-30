@@ -260,7 +260,7 @@ namespace {
             loopCount = 0;
 		}
 		
-        std::string newBitFieldName(StringRef s)
+        std::string newBitFieldName(std::string s)
         {
             //static unsigned bitFieldCount = 0;
             //
@@ -273,7 +273,7 @@ namespace {
             return bff.str();
         }
         
-		Constant * insertBitField(StringRef Name) {
+		Constant * insertBitField(std::string Name) {
 			Type *Ty = IntegerType::get(getGlobalContext(), 32);
 			
 			Constant *C = M.getOrInsertGlobal(Name, Ty);
@@ -1399,7 +1399,7 @@ namespace {
                     DEBUG(errs() << " (Has self-loop).");
             }
             DEBUG(errs() << "\n");
-                        
+
             for (unsigned int i = 0; i < fifo.size(); ++i) {
                 DEBUG(errs() << "Looking at " << fifo[i]->getName() << "\n");
                 BasicBlock *fi = fifo[i];
@@ -1500,6 +1500,7 @@ namespace {
         }
         else {
             errs() << "Error: unable to find function " << FuncToInstrument << "\n";
+            return false;
         }
         return true;
     }
