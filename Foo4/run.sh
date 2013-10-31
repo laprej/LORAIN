@@ -1,8 +1,8 @@
 #!/bin/sh
 
-if [ $# -ne 3 ]
+if [ $# -ne 3 -a $# -ne 4 ]
 then
-  echo "Usage: `basename $0` <file>.c <event_handler> <reverse_handler_to_emit>"
+  echo "Usage: `basename $0` <file>.c <event_handler> <reverse_handler_to_emit> [1 (if you're using a pre-generated BC file)]"
   exit $E_BADARGS
 fi
 
@@ -34,13 +34,17 @@ if [ -d "$DIRECTORY" ]; then
 #    echo $PATH
 fi
 
-if [ ! -f "$1.c" ]
+if [ ! -f "$1.c" -a $# -eq 3 ]
 then
     echo "$1.c not found!"
     exit
 fi
 
-clang -emit-llvm $1.c -c -o $1.bc
+if [ $# -eq 3 ]
+then
+    echo clang -emit-llvm $1.c -c -o $1.bc
+    clang -emit-llvm $1.c -c -o $1.bc
+fi
 
 SCLIB="/Users/laprej/temp/llvm-3.2-install/lib/BCGEPs.dylib"
 AUGLIB="/Users/laprej/temp/llvm-3.2-install/lib/aug-struct.dylib"
