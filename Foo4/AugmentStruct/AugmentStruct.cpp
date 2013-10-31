@@ -4,12 +4,12 @@
 
 #include "AugmentStruct.h"
 
-#include "llvm/IR/Value.h"
+#include "llvm/Value.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/InstVisitor.h"
+#include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 

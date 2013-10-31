@@ -1,5 +1,5 @@
 #include "llvm/Pass.h"
-#include "llvm/IR/Module.h"
+#include "llvm/Module.h"
 
 using namespace llvm;
 
