@@ -90,9 +90,13 @@ test-assign-struct-args-if-output.o:
 test-switch-output.o:
 	../run.sh test-switch test_switch undo_test_switch
 
-phold-output.bc:
+phold-output.o:
 	cp ./preGenerated/phold.bc .
 	../run.sh phold phold_event_handler rc 1
+
+airport-output.o:
+	cp ./preGenerated/airport.bc .
+	../run.sh airport event_handler rc 1
 
 clean:
 	rm -f *.o *.s *.bc *.ll *~
