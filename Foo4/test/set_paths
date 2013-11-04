@@ -1,0 +1,2 @@
+export PATH=/Users/laprej/temp/clang+llvm-3.2-x86_64-apple-darwin11/bin:$PATH
+export PATH=/Users/laprej/temp/llvm-3.2-install/bin:$PATH
