@@ -31,6 +31,8 @@ STATISTIC(ValsSavedToMesg, "Number of Values saved in Message struct");
 
 static cl::opt<std::string> FuncToInstrument("ins-func",
                                              cl::desc("<func to instrument>"));
+static cl::opt<std::string> FuncToUpdate("update-func",
+                                         cl::desc("<reverse handler to update>"));
 
 bool usingRoss = false;
 
@@ -226,9 +228,16 @@ bool AugmentStruct::runOnModule(Module &M)
     
     // Find the target function
     Function *F = M.getFunction(FuncToInstrument);
+    // Reverse handler to update
+    Function *G = M.getFunction(FuncToUpdate);
     
     if (!F) {
-        errs() << FuncToInstrument << " not found\n";
+        errs() << "FuncToInstrument (" << FuncToInstrument << ") not found\n";
+        return false;
+    }
+
+    if (!G) {
+        errs() << "FuncToUpdate (" << FuncToUpdate << ") not found\n";
         return false;
     }
     
@@ -318,6 +327,7 @@ bool AugmentStruct::runOnModule(Module &M)
     FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, F->getFunctionType()->isVarArg());
     
     Function *newFun = Function::Create(funTypeTo, F->getLinkage(), F->getName(), &M);
+    Function *newFun2 = Function::Create(funTypeTo, G->getLinkage(), G->getName(), &M);
     
     ValueToValueMapTy VMap;
     Function::arg_iterator DestI = newFun->arg_begin();
@@ -337,7 +347,7 @@ bool AugmentStruct::runOnModule(Module &M)
     TyMapper.TyMap[fromStructPtrPtr] = toStructPtrPtr;
 
     CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
-    
+
     while (!F->use_empty()) {
         User *U = F->use_back();
         DEBUG(errs() << "Use of F: " << *U << "\n");
@@ -348,12 +358,27 @@ bool AugmentStruct::runOnModule(Module &M)
             C->replaceUsesOfWithOnConstant(F, newFun, 0);
         }
     }
-    
+
+    while (!G->use_empty()) {
+        User *U = G->use_back();
+        DEBUG(errs() << "Use of F: " << *U << "\n");
+        DEBUG(errs() << "Type: " << *U->getType() << "\n");
+        if (Constant *C = dyn_cast<Constant>(U)) {
+            /// replaceAllUsesWith will fail because the function types are
+            /// different.  Do it this way instead
+            C->replaceUsesOfWithOnConstant(G, newFun2, 0);
+        }
+    }
+
     newFun->takeName(F);
+    newFun2->takeName(G);
 
     F->dropAllReferences();
     F->eraseFromParent();
-    
+
+    G->dropAllReferences();
+    G->eraseFromParent();
+
     return true;
 }
 
