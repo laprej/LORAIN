@@ -216,6 +216,7 @@ public:
                         Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
                         assert(G->getOperand(1) == zero);
                         workList[G->getOperand(2)] = I.getPointerOperand();
+                        markJML(&I);
                     }
                     return;
                 }
