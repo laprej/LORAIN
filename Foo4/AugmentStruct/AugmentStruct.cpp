@@ -58,6 +58,21 @@ public:
 std::set<Value*> argUsers[4];
 std::map<Value *, Value *> workList;
 
+MDNode * markJML(Value *v, bool skip = true) {
+    MDNode *ret = 0;
+
+    if (Instruction *I = dyn_cast<Instruction>(v)) {
+        Value *Elts[] = {
+            ConstantInt::get(Type::getInt1Ty(getGlobalContext()), skip ? 1 : 0), // skip
+            ret
+        };
+        ret = MDNode::get(getGlobalContext(), Elts);
+        I->setMetadata("jml", ret);
+    }
+
+    return ret;
+}
+
 /// Collect all use-defs into a container
 void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 0) {
     if (indent == 0) {
