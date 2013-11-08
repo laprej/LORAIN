@@ -269,9 +269,33 @@ bool AugmentStruct::runOnModule(Module &M)
         return false;
     }
     
+    Type *Ty = 0;
+
+    FunctionType *funTypeFrom = F->getFunctionType();
+
+    std::vector<Type *> funTypeArgsFrom(funTypeFrom->param_begin(),
+                                        funTypeFrom->param_end());
+    Ty = funTypeArgsFrom[2];
+
+    assert(Ty);
+    assert(isa<PointerType>(Ty));
+
+    Ty = Ty->getPointerElementType();
+
+    assert(isa<StructType>(Ty));
+
+    StructType *fromStruct = cast<StructType>(Ty);
+    PointerType *fromStructPtr = PointerType::getUnqual(fromStruct);
+    PointerType *fromStructPtrPtr = PointerType::getUnqual(fromStructPtr);
+
+    std::vector<Type *> structItems(fromStruct->element_begin(),
+                                    fromStruct->element_end());
+
     std::vector<Value *> valuesToSave;
-    
+
     std::vector<Type *> TypesToAdd;
+
+    int j = 0;
     for (std::map<Value*, Value*>::iterator i = workList.begin(), e = workList.end(); i != e; ++i) {
         /// Increment the statistics
         ++ValsSavedToMesg;
@@ -290,7 +314,20 @@ bool AugmentStruct::runOnModule(Module &M)
         TypesToAdd.push_back(Ty);
         
         /// Save the index into the LP state that we're overwriting
-        valuesToSave.push_back(i->first);
+        /// But we also need to save the index we are placing it in
+
+        std::vector<Constant *> tempVector;
+
+        /// Create array type
+        ArrayType *AT = ArrayType::get(Type::getInt32Ty(getGlobalContext()), 2);
+
+        tempVector.push_back(cast<Constant>(i->first));
+        Constant *idx = ConstantInt::get(Type::getInt32Ty(getGlobalContext()),
+                                      structItems.size() + j++);
+        tempVector.push_back(idx);
+        ArrayRef<Constant *> idxPair(tempVector);
+        Constant *constPair = ConstantArray::get(AT, idxPair);
+        valuesToSave.push_back(constPair);
     }
     
     MDNode *vals = MDNode::get(getGlobalContext(), valuesToSave);
@@ -302,27 +339,6 @@ bool AugmentStruct::runOnModule(Module &M)
         funArgsFrom.push_back(I);
     }
     
-    Type *Ty = 0;
-    
-    FunctionType *funTypeFrom = F->getFunctionType();
-    
-    std::vector<Type *> funTypeArgsFrom(funTypeFrom->param_begin(),
-                                        funTypeFrom->param_end());
-    Ty = funTypeArgsFrom[2];
-    
-    assert(Ty);
-    assert(isa<PointerType>(Ty));
-    
-    Ty = Ty->getPointerElementType();
-    
-    assert(isa<StructType>(Ty));
-    
-    StructType *fromStruct = cast<StructType>(Ty);
-    PointerType *fromStructPtr = PointerType::getUnqual(fromStruct);
-    PointerType *fromStructPtrPtr = PointerType::getUnqual(fromStructPtr);
-    
-    std::vector<Type *> structItems(fromStruct->element_begin(),
-                                    fromStruct->element_end());
     /// Add the other items to the struct we're about to create
     structItems.insert(structItems.end(), TypesToAdd.begin(), TypesToAdd.end());
     
