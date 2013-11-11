@@ -1228,6 +1228,20 @@ namespace {
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
 
+    void Hello::handlePrologue(Module &M)
+    {
+        if (NamedMDNode *N = M.getNamedMetadata(jmlAugId)) {
+            Function *F = M.getFunction(FuncToInstrument);
+        }
+    }
+
+    void Hello::handleEpilogue(Module &M)
+    {
+        if (NamedMDNode *N = M.getNamedMetadata(jmlAugId)) {
+            Function *F = M.getFunction(FuncToGenerate);
+        }
+    }
+
     bool Hello::runOnModule(Module &M) {
         if (Function *ForwardFunc = M.getFunction(FuncToInstrument)) {
             ////////////////////////////////////////
@@ -1291,6 +1305,8 @@ namespace {
                 }
                 instrumenter.visit(&*I);
             }
+
+            handlePrologue(M);
 
             errs() << "Instrumentation complete.\n";
             errs() << "No more modification to the input function.\n";

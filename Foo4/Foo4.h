@@ -122,7 +122,11 @@ namespace {
 		void negateStoreInstruction(StoreInst *b);
         
 		virtual void getAnalysisUsage(AnalysisUsage &Info) const;
-		
+
+        void handlePrologue(Module &M);
+
+        void handleEpilogue(Module &M);
+
         virtual bool runOnModule(Module &M);
     };
 }
