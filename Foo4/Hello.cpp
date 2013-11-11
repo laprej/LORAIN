@@ -80,7 +80,9 @@ namespace {
     std::set<Value*> argUsers[4];
     
     bool usingRoss = false;
-    
+
+    const std::string jmlAugId = "jml.functionPrologue";
+
     class MessageUpdater: public ValueMapTypeRemapper
     {
     public:
