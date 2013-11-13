@@ -37,6 +37,10 @@ static cl::opt<std::string> FuncToUpdate("update-func",
 bool usingRoss = false;
 
 const std::string jmlAugId = "jml.functionPrologue";
+// Layout of jmlAugId metadata:
+//  -------------------------------------------------------------------
+// |  index of LP state member  |  index of LP message storage member  |
+//  -------------------------------------------------------------------
 
 class MessageUpdater: public ValueMapTypeRemapper
 {
