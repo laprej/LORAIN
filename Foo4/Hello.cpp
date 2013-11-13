@@ -1228,15 +1228,56 @@ namespace {
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
 
+    /*
+     1. Get function argument 0
+     2. GEP 1 to proper src offset
+     3. Get function argument 2
+     4. GEP 3 to proper dst offset
+     5. Store 2 into 4
+     */
     void Hello::handlePrologue(Module &M)
     {
+        /// If we don't find this metadata then we don't need to handle this
         if (NamedMDNode *N = M.getNamedMetadata(jmlAugId)) {
+            /// TODO: Fix this; we're making some assumptions
+            MDNode *MD = N->getOperand(0);
+            Value *V = MD->getOperand(0);
+            ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V);
+            assert(CDS && "invalid metadata operands");
+
+            unsigned stateMemberIdx = CDS->getElementAsInteger(0);
+            unsigned messageMemberIdx = CDS->getElementAsInteger(1);
+
+            errs() << "state member " << stateMemberIdx << " maps to message member " << messageMemberIdx << "\n";
+
             Function *F = M.getFunction(FuncToInstrument);
+
+            Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
+            Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
+            Value *lastAlloc = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(3), M, F);
+            if (Instruction *I = dyn_cast<Instruction>(lastAlloc)) {
+                I = I->getNextNode();
+                builder->SetInsertPoint(I);
+            }
+
+            std::vector<Value *> arr;
+            arr.push_back(builder->getInt32(0));
+            arr.push_back(builder->getInt32(stateMemberIdx));
+            Value *step2 = builder->CreateGEP(step1, arr);
+
+            std::vector<Value *> arr2;
+            arr2.push_back(builder->getInt32(0));
+            arr2.push_back(builder->getInt32(messageMemberIdx));
+            Value *step4 = builder->CreateGEP(step3, arr2);
+
+            Value *oldStateVal = builder->CreateLoad(step2);
+            builder->CreateStore(oldStateVal, step4);
         }
     }
 
     void Hello::handleEpilogue(Module &M)
     {
+        /// If we don't find this metadata then we don't need to handle this
         if (NamedMDNode *N = M.getNamedMetadata(jmlAugId)) {
             Function *F = M.getFunction(FuncToGenerate);
         }
