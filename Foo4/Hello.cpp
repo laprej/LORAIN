@@ -240,7 +240,21 @@ namespace {
         
         return results;
     }
-	
+
+    MDNode * markAsSkip(Value *v, bool skip = true) {
+        MDNode *ret = 0;
+
+        if (Instruction *I = dyn_cast<Instruction>(v)) {
+            Value *Elts[] = {
+                ConstantInt::get(Type::getInt1Ty(getGlobalContext()), skip ? 1 : 0), // skip
+                ret
+            };
+            ret = MDNode::get(getGlobalContext(), Elts);
+            I->setMetadata("jml", ret);
+        }
+        return ret;
+    }
+
 #pragma mark
 #pragma mark Instrumenter
 
@@ -1290,6 +1304,8 @@ namespace {
 
             Value *oldStateVal = builder.CreateLoad(step2);
             Value *store = builder.CreateStore(oldStateVal, step4);
+
+            markAsSkip(store);
         }
     }
 
