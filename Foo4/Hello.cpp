@@ -1313,7 +1313,44 @@ namespace {
     {
         /// If we don't find this metadata then we don't need to handle this
         if (NamedMDNode *N = M.getNamedMetadata(jmlAugId)) {
-            Function *F = M.getFunction(FuncToGenerate);
+            /// TODO: Fix this; we're making some assumptions
+            MDNode *MD = N->getOperand(0);
+            Value *V = MD->getOperand(0);
+            ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V);
+            assert(CDS && "invalid metadata operands");
+
+            unsigned stateMemberIdx = CDS->getElementAsInteger(0);
+            unsigned messageMemberIdx = CDS->getElementAsInteger(1);
+
+            errs() << "state member " << stateMemberIdx << " maps to message member " << messageMemberIdx << "\n";
+
+            Function *F = M.getFunction(FuncToInstrument);
+
+            Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
+            Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
+
+            IRBuilder<> builder(&F->getEntryBlock());
+
+            builder.SetInsertPoint(findSpot(F));
+
+            Value *step1a = builder.CreateLoad(step1);
+            Value *step3a = builder.CreateLoad(step3);
+
+            std::vector<Value *> arr;
+            arr.push_back(builder.getInt32(0));
+            arr.push_back(builder.getInt32(stateMemberIdx));
+            Value *step2 = builder.CreateGEP(step1a, arr);
+
+            std::vector<Value *> arr2;
+            arr2.push_back(builder.getInt32(0));
+            arr2.push_back(builder.getInt32(messageMemberIdx));
+            Value *step4 = builder.CreateGEP(step3a, arr2);
+
+            /// Invert this!
+            Value *oldStateVal = builder.CreateLoad(step4);
+            Value *store = builder.CreateStore(oldStateVal, step2);
+
+            markAsSkip(store);
         }
     }
 
