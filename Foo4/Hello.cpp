@@ -295,7 +295,7 @@ namespace {
 			
 			return C;
 		}
-		
+
 		MDNode * markJML(Value *v, bool skip = true) {
             MDNode *ret = 0;
             
@@ -309,11 +309,8 @@ namespace {
                     DEBUG(errs() << "Instrumenter: B->getSuccessor(0) is " << then->getName() << "\n");
 					BasicBlock *el = B->getSuccessor(1);
                     DEBUG(errs() << "Instrumenter: B->getSuccessor(1) is " << el->getName() << "\n");
-                    //B->getParent()->getParent()->viewCFG();
-                    
+
 					Value *Elts[] = {
-//                        BlockAddress::get(then),
-//                        BlockAddress::get(el),
                         ConstantInt::get(Type::getInt32Ty(getGlobalContext()), bitFieldCount)
 					};
 					ret = MDNode::get(getGlobalContext(), Elts);
@@ -330,11 +327,9 @@ namespace {
                     ret
                 };
 				ret = MDNode::get(getGlobalContext(), Elts);
-				//NamedMDNode *NMD = M.getOrInsertNamedMetadata("jml.new.var");
-				//NMD->addOperand(Node);
 				I->setMetadata("jml", ret);
 			}
-            
+
             return ret;
 		}
 
