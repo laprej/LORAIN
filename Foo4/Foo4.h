@@ -76,7 +76,6 @@ namespace {
         static char ID; // Pass identification, replacement for typeid
         Hello() : ModulePass(ID)
         {
-            builder = 0;
         }
 
         /// Our Inverter class
@@ -90,9 +89,7 @@ namespace {
         //std::map<BasicBlock *, BasicBlock *> bbmOldToNew;
         
         std::map<const Value *, Value *> duals;
-        
-        IRBuilder<> *builder;
-        
+
         LoopInfo * getLoopInfo(Function &f);
         
         BasicBlock *reverseBlock(BasicBlock *B);

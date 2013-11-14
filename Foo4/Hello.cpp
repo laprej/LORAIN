@@ -1228,6 +1228,27 @@ namespace {
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
 
+    /// Find the right spot to insert instructions
+    Instruction * findSpot(Function *F)
+    {
+        BasicBlock *BB = &F->getEntryBlock();
+
+        // blk is a pointer to a BasicBlock instance
+        BasicBlock::iterator i, e;
+        for (i = BB->begin(), e = BB->end(); i != e; ++i) {
+            if (isa<BitCastInst>(i)) {
+                break;
+            }
+        }
+        // Start at the next one
+        for (++i; i != e; ++i) {
+            if (!isa<StoreInst>(i)) {
+                break;
+            }
+        }
+        return i;
+    }
+
     /*
      1. Get function argument 0
      2. GEP 1 to proper src offset
@@ -1254,24 +1275,26 @@ namespace {
 
             Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
             Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
-            Value *lastAlloc = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(3), M, F);
-            if (Instruction *I = dyn_cast<Instruction>(lastAlloc)) {
-                I = I->getNextNode();
-                builder->SetInsertPoint(I);
-            }
+
+            IRBuilder<> builder(&F->getEntryBlock());
+
+            builder.SetInsertPoint(findSpot(F));
+
+            Value *step1a = builder.CreateLoad(step1);
+            Value *step3a = builder.CreateLoad(step3);
 
             std::vector<Value *> arr;
-            arr.push_back(builder->getInt32(0));
-            arr.push_back(builder->getInt32(stateMemberIdx));
-            Value *step2 = builder->CreateGEP(step1, arr);
+            arr.push_back(builder.getInt32(0));
+            arr.push_back(builder.getInt32(stateMemberIdx));
+            Value *step2 = builder.CreateGEP(step1a, arr);
 
             std::vector<Value *> arr2;
-            arr2.push_back(builder->getInt32(0));
-            arr2.push_back(builder->getInt32(messageMemberIdx));
-            Value *step4 = builder->CreateGEP(step3, arr2);
+            arr2.push_back(builder.getInt32(0));
+            arr2.push_back(builder.getInt32(messageMemberIdx));
+            Value *step4 = builder.CreateGEP(step3a, arr2);
 
-            Value *oldStateVal = builder->CreateLoad(step2);
-            builder->CreateStore(oldStateVal, step4);
+            Value *oldStateVal = builder.CreateLoad(step2);
+            Value *store = builder.CreateStore(oldStateVal, step4);
         }
     }
 
