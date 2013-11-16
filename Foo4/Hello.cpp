@@ -59,6 +59,7 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 
 #include "llvm/DebugInfo.h"
+#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 
 using namespace llvm;
 
@@ -1238,24 +1239,33 @@ namespace {
     }
 
     /// Find the right spot to insert instructions
-    Instruction * findSpot(Function *F)
+    Instruction * findSpot(Function *F, int reverse = 0)
     {
-        BasicBlock *BB = &F->getEntryBlock();
+        if (!reverse) {
+            BasicBlock *BB = &F->getEntryBlock();
 
-        // blk is a pointer to a BasicBlock instance
-        BasicBlock::iterator i, e;
-        for (i = BB->begin(), e = BB->end(); i != e; ++i) {
-            if (isa<BitCastInst>(i)) {
-                break;
+            BasicBlock::iterator i, e;
+            for (i = BB->begin(), e = BB->end(); i != e; ++i) {
+                if (isa<BitCastInst>(i)) {
+                    break;
+                }
             }
-        }
-        // Start at the next one
-        for (++i; i != e; ++i) {
-            if (!isa<StoreInst>(i)) {
-                break;
+            // Start at the next one
+            for (++i; i != e; ++i) {
+                if (!isa<StoreInst>(i)) {
+                    break;
+                }
             }
+            return i;
         }
-        return i;
+        else {
+            /// We need to make sure that there's ONE exit node!
+            UnifyFunctionExitNodes unify;
+            unify.runOnFunction(*F);
+
+            BasicBlock *returnBlock = unify.getReturnBlock();
+            return returnBlock->getTerminator();
+        }
     }
 
     /*
@@ -1291,20 +1301,24 @@ namespace {
 
             Value *step1a = builder.CreateLoad(step1);
             Value *step3a = builder.CreateLoad(step3);
+            markAsSkip(step1a);
+            markAsSkip(step3a);
 
             std::vector<Value *> arr;
             arr.push_back(builder.getInt32(0));
             arr.push_back(builder.getInt32(stateMemberIdx));
             Value *step2 = builder.CreateGEP(step1a, arr);
+            markAsSkip(step2);
 
             std::vector<Value *> arr2;
             arr2.push_back(builder.getInt32(0));
             arr2.push_back(builder.getInt32(messageMemberIdx));
             Value *step4 = builder.CreateGEP(step3a, arr2);
+            markAsSkip(step4);
 
             Value *oldStateVal = builder.CreateLoad(step2);
             Value *store = builder.CreateStore(oldStateVal, step4);
-
+            markAsSkip(oldStateVal);
             markAsSkip(store);
         }
     }
@@ -1313,6 +1327,8 @@ namespace {
     {
         /// If we don't find this metadata then we don't need to handle this
         if (NamedMDNode *N = M.getNamedMetadata(jmlAugId)) {
+            Function *F = M.getFunction(FuncToGenerate);
+
             /// TODO: Fix this; we're making some assumptions
             MDNode *MD = N->getOperand(0);
             Value *V = MD->getOperand(0);
@@ -1324,14 +1340,12 @@ namespace {
 
             errs() << "state member " << stateMemberIdx << " maps to message member " << messageMemberIdx << "\n";
 
-            Function *F = M.getFunction(FuncToInstrument);
-
             Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
             Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
 
             IRBuilder<> builder(&F->getEntryBlock());
 
-            builder.SetInsertPoint(findSpot(F));
+            builder.SetInsertPoint(findSpot(F, 1));
 
             Value *step1a = builder.CreateLoad(step1);
             Value *step3a = builder.CreateLoad(step3);
@@ -1578,7 +1592,9 @@ namespace {
                 DEBUG(errs() << "BASIC BLOCK: ");
                 DEBUG(errs() << block->getName() << "\n");
             }
-            
+
+            //handleEpilogue(M);
+
             return true;
         }
         else {
