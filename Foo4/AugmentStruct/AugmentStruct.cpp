@@ -394,6 +394,9 @@ bool AugmentStruct::runOnModule(Module &M)
             C->replaceUsesOfWithOnConstant(F, newFun, 0);
         }
     }
+    newFun->takeName(F);
+    F->dropAllReferences();
+    F->eraseFromParent();
 
     while (!G->use_empty()) {
         User *U = G->use_back();
@@ -405,13 +408,7 @@ bool AugmentStruct::runOnModule(Module &M)
             C->replaceUsesOfWithOnConstant(G, newFun2, 0);
         }
     }
-
-    newFun->takeName(F);
     newFun2->takeName(G);
-
-    F->dropAllReferences();
-    F->eraseFromParent();
-
     G->dropAllReferences();
     G->eraseFromParent();
 
