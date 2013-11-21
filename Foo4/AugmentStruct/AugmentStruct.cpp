@@ -36,7 +36,10 @@ static cl::opt<std::string> FuncToUpdate("update-func",
 
 bool usingRoss = false;
 
+const std::string jml = "jml";
+const std::string jmlAugSwap = "jml.augSwap";
 const std::string jmlAugId = "jml.functionPrologue";
+
 // Layout of jmlAugId metadata:
 //  -------------------------------------------------------------------
 // |  index of LP state member  |  index of LP message storage member  |
@@ -71,7 +74,8 @@ MDNode * markJML(Value *v, bool skip = true) {
             ret
         };
         ret = MDNode::get(getGlobalContext(), Elts);
-        I->setMetadata("jml", ret);
+        I->setMetadata(jml, ret);
+        I->setMetadata(jmlAugSwap, ret);
     }
 
     return ret;
@@ -411,6 +415,74 @@ bool AugmentStruct::runOnModule(Module &M)
     newFun2->takeName(G);
     G->dropAllReferences();
     G->eraseFromParent();
+
+    Function *init = M.getFunction("init");
+
+    Returns.clear();
+    VMap.clear();
+
+    Function *newInit = Function::Create(init->getFunctionType(), init->getLinkage(), init->getName(), &M);
+
+    DestI = newInit->arg_begin();
+    for (Function::arg_iterator I = init->arg_begin(), E = init->arg_end();
+         I != E; ++I) {
+        DestI->setName(I->getName());
+        VMap[I] = DestI++;
+    }
+
+    CloneFunctionInto(newInit, init, VMap, true, Returns, "", 0, &TyMapper);
+
+    while (!init->use_empty()) {
+        User *U = init->use_back();
+        DEBUG(errs() << "Use of F: " << *U << "\n");
+        DEBUG(errs() << "Type: " << *U->getType() << "\n");
+        if (Constant *C = dyn_cast<Constant>(U)) {
+            /// replaceAllUsesWith will fail because the function types are
+            /// different.  Do it this way instead
+            C->replaceUsesOfWithOnConstant(init, newInit, 0);
+        }
+    }
+    newInit->takeName(init);
+    init->dropAllReferences();
+    init->eraseFromParent();
+
+    Function *main = M.getFunction("main");
+
+    Returns.clear();
+    VMap.clear();
+
+    Function *newMain = Function::Create(main->getFunctionType(), main->getLinkage(), main->getName(), &M);
+
+    DestI = newMain->arg_begin();
+    for (Function::arg_iterator I = main->arg_begin(), E = main->arg_end();
+         I != E; ++I) {
+        DestI->setName(I->getName());
+        VMap[I] = DestI++;
+    }
+
+    ArrayType *at1 = ArrayType::get(fromStruct, 2);
+    ArrayType *at2 = ArrayType::get(toStruct, 2);
+    PointerType *at1ptr = PointerType::getUnqual(at1);
+    PointerType *at2ptr = PointerType::getUnqual(at2);
+
+    TyMapper.TyMap[at1] = at2;
+    TyMapper.TyMap[at1ptr] = at2ptr;
+
+    CloneFunctionInto(newMain, main, VMap, true, Returns, "", 0, &TyMapper);
+
+    while (!main->use_empty()) {
+        User *U = main->use_back();
+        DEBUG(errs() << "Use of F: " << *U << "\n");
+        DEBUG(errs() << "Type: " << *U->getType() << "\n");
+        if (Constant *C = dyn_cast<Constant>(U)) {
+            /// replaceAllUsesWith will fail because the function types are
+            /// different.  Do it this way instead
+            C->replaceUsesOfWithOnConstant(main, newMain, 0);
+        }
+    }
+    newMain->takeName(main);
+    main->dropAllReferences();
+    main->eraseFromParent();
 
     return true;
 }
