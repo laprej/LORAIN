@@ -923,12 +923,9 @@ namespace {
                 }
                 return;
             }
-			
-            // foo is the generated "inverse" basic block
-			BasicBlock *foo = builder.GetInsertBlock();
-			
+
 			DEBUG(errs() << "Inverter: count is " << count << "\n");
-			
+
 			/// If count is zero, it must be the entry block so make it exit
 			if (count == 0) {
 				builder.CreateRetVoid();
