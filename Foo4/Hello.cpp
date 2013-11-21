@@ -576,8 +576,8 @@ namespace {
                     DEBUG(errs() << "Storing to non-LP state variable\n");
                     Value *v = cast<Value>(&I);
                     markJML(v);
-                    return;
                 }
+                return;
             }
 
             /// These are the cases for "destructive" assignment
