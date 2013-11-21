@@ -1593,7 +1593,7 @@ namespace {
                 DEBUG(errs() << block->getName() << "\n");
             }
 
-            //handleEpilogue(M);
+            handleEpilogue(M);
 
             return true;
         }
