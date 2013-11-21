@@ -119,7 +119,7 @@ void getUseDef(User *I, std::vector<Value *> &bucket, Function *f, int indent = 
     DEBUG(errs() << "This instruction has " << uses << " uses\n\n");
 }
 
-/// Find common Values used by I and the Function arg[argIndex]
+/// Find common Values used by I and the Function_arg[argIndex]
 /// This function returns a set (no dupes)
 std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
 {
@@ -135,6 +135,7 @@ std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
         bucket.resize(std::distance(bucket.begin(), i));
         
         /// If the value we load has a name and is not a global...
+        /// (i.e. it's a local variable in this function)
         for (unsigned i = 0; i < bucket.size(); ++i) {
             if (LoadInst *L = dyn_cast<LoadInst>(bucket[i])) {
                 if (!L->getPointerOperand()->hasName()) {
@@ -146,6 +147,9 @@ std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
                 }
                 else {
                     /// Return the empty results vector
+                    /// TODO: Is this correct?  Should we return empty on the
+                    /// TODO: first local variable we see?  We can't recreate
+                    /// TODO: the resulting value w/o the local so I guess so
                     return results;
                 }
             }
