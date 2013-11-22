@@ -13,8 +13,8 @@ then
 fi
 
 #odin
-if [ -d /Users/laprej/temp/llvm-3.0-install/bin ]; then
-    export PATH=/Users/laprej/temp/llvm-3.0-install/bin:$PATH
+if [ -d /Users/laprej/temp/llvm-3.2-install/bin ]; then
+    export PATH=/Users/laprej/temp/llvm-3.2-install/bin:$PATH
 fi
 #army
 if [ -d /Users/jlapre/temp/llvm-mac-install/bin ]; then
