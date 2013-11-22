@@ -370,11 +370,11 @@ bool AugmentStruct::runOnModule(Module &M)
     
     FunctionType *funTypeTo = FunctionType::get(F->getReturnType(), funTypeArgsTo, F->getFunctionType()->isVarArg());
     
-    Function *newFun = Function::Create(funTypeTo, F->getLinkage(), F->getName(), &M);
-    Function *newFun2 = Function::Create(funTypeTo, G->getLinkage(), G->getName(), &M);
+    Function *newForward = Function::Create(funTypeTo, F->getLinkage(), F->getName(), &M);
+    Function *newReverse = Function::Create(funTypeTo, G->getLinkage(), G->getName(), &M);
     
     ValueToValueMapTy VMap;
-    Function::arg_iterator DestI = newFun->arg_begin();
+    Function::arg_iterator DestI = newForward->arg_begin();
     
     for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
          I != E; ++I) {
@@ -390,7 +390,7 @@ bool AugmentStruct::runOnModule(Module &M)
     TyMapper.TyMap[fromStructPtr] = toStructPtr;
     TyMapper.TyMap[fromStructPtrPtr] = toStructPtrPtr;
 
-    CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
+    CloneFunctionInto(newForward, F, VMap, true, Returns, "", 0, &TyMapper);
 
     while (!F->use_empty()) {
         User *U = F->use_back();
@@ -399,10 +399,10 @@ bool AugmentStruct::runOnModule(Module &M)
         if (Constant *C = dyn_cast<Constant>(U)) {
             /// replaceAllUsesWith will fail because the function types are
             /// different.  Do it this way instead
-            C->replaceUsesOfWithOnConstant(F, newFun, 0);
+            C->replaceUsesOfWithOnConstant(F, newForward, 0);
         }
     }
-    newFun->takeName(F);
+    newForward->takeName(F);
     F->dropAllReferences();
     F->eraseFromParent();
 
@@ -413,10 +413,10 @@ bool AugmentStruct::runOnModule(Module &M)
         if (Constant *C = dyn_cast<Constant>(U)) {
             /// replaceAllUsesWith will fail because the function types are
             /// different.  Do it this way instead
-            C->replaceUsesOfWithOnConstant(G, newFun2, 0);
+            C->replaceUsesOfWithOnConstant(G, newReverse, 0);
         }
     }
-    newFun2->takeName(G);
+    newReverse->takeName(G);
     G->dropAllReferences();
     G->eraseFromParent();
 
@@ -436,16 +436,7 @@ bool AugmentStruct::runOnModule(Module &M)
 
     CloneFunctionInto(newInit, init, VMap, true, Returns, "", 0, &TyMapper);
 
-    while (!init->use_empty()) {
-        User *U = init->use_back();
-        DEBUG(errs() << "Use of F: " << *U << "\n");
-        DEBUG(errs() << "Type: " << *U->getType() << "\n");
-        if (Constant *C = dyn_cast<Constant>(U)) {
-            /// replaceAllUsesWith will fail because the function types are
-            /// different.  Do it this way instead
-            C->replaceUsesOfWithOnConstant(init, newInit, 0);
-        }
-    }
+    init->replaceAllUsesWith(newInit);
     newInit->takeName(init);
     init->dropAllReferences();
     init->eraseFromParent();
@@ -474,16 +465,7 @@ bool AugmentStruct::runOnModule(Module &M)
 
     CloneFunctionInto(newMain, main, VMap, true, Returns, "", 0, &TyMapper);
 
-    while (!main->use_empty()) {
-        User *U = main->use_back();
-        DEBUG(errs() << "Use of F: " << *U << "\n");
-        DEBUG(errs() << "Type: " << *U->getType() << "\n");
-        if (Constant *C = dyn_cast<Constant>(U)) {
-            /// replaceAllUsesWith will fail because the function types are
-            /// different.  Do it this way instead
-            C->replaceUsesOfWithOnConstant(main, newMain, 0);
-        }
-    }
+    main->replaceAllUsesWith(newMain);
     newMain->takeName(main);
     main->dropAllReferences();
     main->eraseFromParent();
