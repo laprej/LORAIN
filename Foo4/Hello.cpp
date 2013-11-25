@@ -1394,7 +1394,8 @@ namespace {
             }
             
             Instrumenter instrumenter(M, this);
-            
+
+            /// workList will contain BBs with 2 or more predecessors
             std::set<BasicBlock *> workList;
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
                 BasicBlock *bb = fi;
