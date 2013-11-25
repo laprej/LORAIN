@@ -284,6 +284,7 @@ namespace {
             Twine bff(s);
             
             bff = bff.concat(Twine(bitFieldCount++));
+            assert(bitFieldCount < 32 && "bit field overflow");
             
             DEBUG(errs() << "Instrumenter: newBitFieldName is returning " << bff << "\n");
             
@@ -429,6 +430,7 @@ namespace {
                 blocks.push_back(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), numBits));
                 
                 bitFieldCount += numBits;
+                assert(bitFieldCount < 32 && "bit field overflow");
             }
             else {
                 for (i = 1, pi = pred_begin(successor), pe = pred_end(successor); pi != pe; ++pi, ++i) {
