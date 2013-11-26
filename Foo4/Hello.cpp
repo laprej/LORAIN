@@ -392,7 +392,7 @@ namespace {
                 }
                 
                 /// We use zero to be a "reset" bf so we have to add 1 to numPreds
-                int numBits = lrint(log2(numPreds + 1));
+                int numBits = ceil(log2(numPreds + 1));
                 DEBUG(errs() << numPreds << " pred edges require " << numBits << " bits\n");
                 uint32_t mask = 0;
                 mask = (1 << numBits) - 1;
