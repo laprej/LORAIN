@@ -567,8 +567,8 @@ namespace {
 		}
 
         void visitStoreInst(StoreInst &I) {
+            /// If we're using ROSS
             if (usingRoss) {
-                /// If we're using ROSS
                 std::vector<Value *> results = overlap(I);
                 if (results.size()) {
                     /// TODO: Finish this!
