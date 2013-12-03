@@ -411,9 +411,9 @@ namespace {
                     /// Load the bitfield
                     Value *loadBitField = temp.CreateLoad(v);
                     /// Bitcast it
-                    Value *bcast = temp.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
+                    Value *bitcast = temp.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
                     /// Another load
-                    Value *al = temp.CreateLoad(bcast);
+                    Value *al = temp.CreateLoad(bitcast);
                     /// Clear the old bits
                     Value *clear = temp.CreateAnd(al, ~mask);
                     /// Turn on appropriate bits
@@ -422,7 +422,7 @@ namespace {
                     Value *shifted = temp.CreateShl(newVal, bitFieldCount);
                     /// Perform an OR
                     Value *OR = temp.CreateOr(shifted, clear);
-                    Value *store = temp.CreateStore(OR, bcast);
+                    Value *store = temp.CreateStore(OR, bitcast);
                     markJML(store);
                 }
 
