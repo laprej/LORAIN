@@ -1065,6 +1065,20 @@ namespace {
                 Value *v = builder.CreateCall(now, lookup(G));
                 oldToNew[&I] = v;
             }
+            if (str == "print_bf") {
+                errs() << "Calling print_bf()\n";
+
+                handleDeps(I);
+
+                Value *G = I.getOperand(0);
+                Value *H = I.getOperand(1);
+                Function *pbf = M.getFunction("print_bf");
+                assert(pbf && "print_bf not found!");
+                Value *v = builder.CreateCall2(pbf, lookup(G), lookup(H));
+                oldToNew[&I] = v;
+
+                I.eraseFromParent();
+            }
         }
 		
 		void visitBinaryOperator(BinaryOperator &I) {
