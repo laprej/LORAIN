@@ -421,54 +421,56 @@ bool AugmentStruct::runOnModule(Module &M)
     G->eraseFromParent();
 
     Function *init = M.getFunction("init");
+    if (init) {
+        Returns.clear();
+        VMap.clear();
 
-    Returns.clear();
-    VMap.clear();
+        Function *newInit = Function::Create(init->getFunctionType(), init->getLinkage(), init->getName(), &M);
 
-    Function *newInit = Function::Create(init->getFunctionType(), init->getLinkage(), init->getName(), &M);
+        DestI = newInit->arg_begin();
+        for (Function::arg_iterator I = init->arg_begin(), E = init->arg_end();
+             I != E; ++I) {
+            DestI->setName(I->getName());
+            VMap[I] = DestI++;
+        }
 
-    DestI = newInit->arg_begin();
-    for (Function::arg_iterator I = init->arg_begin(), E = init->arg_end();
-         I != E; ++I) {
-        DestI->setName(I->getName());
-        VMap[I] = DestI++;
+        CloneFunctionInto(newInit, init, VMap, true, Returns, "", 0, &TyMapper);
+
+        init->replaceAllUsesWith(newInit);
+        newInit->takeName(init);
+        init->dropAllReferences();
+        init->eraseFromParent();
     }
-
-    CloneFunctionInto(newInit, init, VMap, true, Returns, "", 0, &TyMapper);
-
-    init->replaceAllUsesWith(newInit);
-    newInit->takeName(init);
-    init->dropAllReferences();
-    init->eraseFromParent();
 
     Function *main = M.getFunction("main");
+    if (main) {
+        Returns.clear();
+        VMap.clear();
 
-    Returns.clear();
-    VMap.clear();
+        Function *newMain = Function::Create(main->getFunctionType(), main->getLinkage(), main->getName(), &M);
 
-    Function *newMain = Function::Create(main->getFunctionType(), main->getLinkage(), main->getName(), &M);
+        DestI = newMain->arg_begin();
+        for (Function::arg_iterator I = main->arg_begin(), E = main->arg_end();
+             I != E; ++I) {
+            DestI->setName(I->getName());
+            VMap[I] = DestI++;
+        }
 
-    DestI = newMain->arg_begin();
-    for (Function::arg_iterator I = main->arg_begin(), E = main->arg_end();
-         I != E; ++I) {
-        DestI->setName(I->getName());
-        VMap[I] = DestI++;
+        ArrayType *at1 = ArrayType::get(fromStruct, 2);
+        ArrayType *at2 = ArrayType::get(toStruct, 2);
+        PointerType *at1ptr = PointerType::getUnqual(at1);
+        PointerType *at2ptr = PointerType::getUnqual(at2);
+
+        TyMapper.TyMap[at1] = at2;
+        TyMapper.TyMap[at1ptr] = at2ptr;
+
+        CloneFunctionInto(newMain, main, VMap, true, Returns, "", 0, &TyMapper);
+
+        main->replaceAllUsesWith(newMain);
+        newMain->takeName(main);
+        main->dropAllReferences();
+        main->eraseFromParent();
     }
-
-    ArrayType *at1 = ArrayType::get(fromStruct, 2);
-    ArrayType *at2 = ArrayType::get(toStruct, 2);
-    PointerType *at1ptr = PointerType::getUnqual(at1);
-    PointerType *at2ptr = PointerType::getUnqual(at2);
-
-    TyMapper.TyMap[at1] = at2;
-    TyMapper.TyMap[at1ptr] = at2ptr;
-
-    CloneFunctionInto(newMain, main, VMap, true, Returns, "", 0, &TyMapper);
-
-    main->replaceAllUsesWith(newMain);
-    newMain->takeName(main);
-    main->dropAllReferences();
-    main->eraseFromParent();
 
     return true;
 }
