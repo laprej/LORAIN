@@ -411,6 +411,14 @@ bool AugmentStruct::runOnModule(Module &M)
     TyMapper.TyMap[fromStruct] = toStruct;
     TyMapper.TyMap[fromStructPtr] = toStructPtr;
     TyMapper.TyMap[fromStructPtrPtr] = toStructPtrPtr;
+    
+    ArrayType *at1 = ArrayType::get(fromStruct, 2);
+    ArrayType *at2 = ArrayType::get(toStruct, 2);
+    PointerType *at1ptr = PointerType::getUnqual(at1);
+    PointerType *at2ptr = PointerType::getUnqual(at2);
+    
+    TyMapper.TyMap[at1] = at2;
+    TyMapper.TyMap[at1ptr] = at2ptr;
 
     CloneFunctionInto(newForward, F, VMap, true, Returns, "", 0, &TyMapper);
 
@@ -442,56 +450,43 @@ bool AugmentStruct::runOnModule(Module &M)
     G->dropAllReferences();
     G->eraseFromParent();
 
-    Function *init = M.getFunction("init");
-    if (init) {
-        Returns.clear();
-        VMap.clear();
-
-        Function *newInit = Function::Create(init->getFunctionType(), init->getLinkage(), init->getName(), &M);
-
-        DestI = newInit->arg_begin();
-        for (Function::arg_iterator I = init->arg_begin(), E = init->arg_end();
-             I != E; ++I) {
-            DestI->setName(I->getName());
-            VMap[I] = DestI++;
+    std::vector<Function*> FunsToUpdate;
+    /// Iterate over the remaining functions
+    for (Module::iterator i = M.begin(), e = M.end(); i != e; ++i) {
+        if (i->getName() == FuncToUpdate          ||
+            i->getName() == FuncToInstrument      ||
+            i->getName() == "rc_event_handler"    ||
+            i->getName() == "phold_event_handler_rc") {
+            continue;
         }
-
-        CloneFunctionInto(newInit, init, VMap, true, Returns, "", 0, &TyMapper);
-
-        init->replaceAllUsesWith(newInit);
-        newInit->takeName(init);
-        init->dropAllReferences();
-        init->eraseFromParent();
+        if (i->isDeclaration()) {
+            continue;
+        }
+        errs() << "adding " << i->getName() << "\n";
+        FunsToUpdate.push_back(i);
     }
 
-    Function *main = M.getFunction("main");
-    if (main) {
+    for (std::vector<Function*>::iterator i = FunsToUpdate.begin(), e = FunsToUpdate.end(); i != e; ++i) {
         Returns.clear();
         VMap.clear();
 
-        Function *newMain = Function::Create(main->getFunctionType(), main->getLinkage(), main->getName(), &M);
+        Function *F = *i;
 
-        DestI = newMain->arg_begin();
-        for (Function::arg_iterator I = main->arg_begin(), E = main->arg_end();
+        Function *newFun = Function::Create(F->getFunctionType(), F->getLinkage(), F->getName(), &M);
+
+        DestI = newFun->arg_begin();
+        for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end();
              I != E; ++I) {
             DestI->setName(I->getName());
             VMap[I] = DestI++;
         }
 
-        ArrayType *at1 = ArrayType::get(fromStruct, 2);
-        ArrayType *at2 = ArrayType::get(toStruct, 2);
-        PointerType *at1ptr = PointerType::getUnqual(at1);
-        PointerType *at2ptr = PointerType::getUnqual(at2);
+        CloneFunctionInto(newFun, F, VMap, true, Returns, "", 0, &TyMapper);
 
-        TyMapper.TyMap[at1] = at2;
-        TyMapper.TyMap[at1ptr] = at2ptr;
-
-        CloneFunctionInto(newMain, main, VMap, true, Returns, "", 0, &TyMapper);
-
-        main->replaceAllUsesWith(newMain);
-        newMain->takeName(main);
-        main->dropAllReferences();
-        main->eraseFromParent();
+        F->replaceAllUsesWith(newFun);
+        newFun->takeName(F);
+        F->dropAllReferences();
+        F->eraseFromParent();
     }
 
     return true;
