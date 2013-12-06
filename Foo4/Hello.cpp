@@ -59,7 +59,6 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 
 #include "llvm/DebugInfo.h"
-#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 
 using namespace llvm;
 
@@ -784,18 +783,7 @@ namespace {
             
             return;
         }
-        
-        BasicBlock *createUnreachable()
-        {
-            Function *f = M.getFunction(FuncToGenerate);
-            BasicBlock *ret = BasicBlock::Create(getGlobalContext(), "", f);
-            IRBuilder<> temp(getGlobalContext());
-            temp.SetInsertPoint(ret);
-            temp.CreateUnreachable();
-            
-            return ret;
-        }
-        
+
 		void visitTerminatorInst(TerminatorInst &I) {
             if (lookup(&I)) {
                 // Already created a counterpart for this instruction, exit
@@ -901,21 +889,31 @@ namespace {
                     /// Load the bitfield
                     Value *loadBitField = builder.CreateLoad(v);
                     /// Bitcast it
-                    Value *bcast = builder.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
+                    Value *bitcast = builder.CreateBitCast(loadBitField, Type::getInt32PtrTy(getGlobalContext()));
                     /// Another load
-                    Value *al = builder.CreateLoad(bcast);
-                    /// AND that value
+                    Value *al = builder.CreateLoad(bitcast);
+                    /// Apply the mask
                     Value *And = builder.CreateAnd(al, mask);
                     /// Shift to the right
                     Value *shifted = builder.CreateLShr(And, bfc);
-                    /// Create a new shift
-                    switchInst = builder.CreateSwitch(shifted, createUnreachable());
+                    /// Find the _default_ path for the switch
+                    bb = cast<BlockAddress>(node->getOperand(0));
+                    block = bb->getBasicBlock();
+                    block = bbmOldToNew[block];
+                    /// Create the switch statement w/ the default block
+                    switchInst = builder.CreateSwitch(shifted, block);
                 }
                 else {
                     numOperands = node->getNumOperands();
-                    switchInst = builder.CreateSwitch(load, createUnreachable());
+                    /// Find the _default_ path for the switch
+                    bb = cast<BlockAddress>(node->getOperand(0));
+                    block = bb->getBasicBlock();
+                    block = bbmOldToNew[block];
+                    /// Create the switch statement w/ the default block
+                    switchInst = builder.CreateSwitch(load, block);
                 }
-                
+
+                /// Add all the other case statements for the switch
                 for (unsigned i = 0; i < numOperands; ++i) {
                     bb = cast<BlockAddress>(node->getOperand(i));
                     block = bb->getBasicBlock();
@@ -1273,11 +1271,17 @@ namespace {
         }
         else {
             /// We need to make sure that there's ONE exit node!
-            UnifyFunctionExitNodes unify;
-            unify.runOnFunction(*F);
+            Instruction *ret = 0;
 
-            BasicBlock *returnBlock = unify.getReturnBlock();
-            return returnBlock->getTerminator();
+            for (Function::iterator i = F->begin(), e = F->end(); i != e; ++i) {
+                TerminatorInst *term = i->getTerminator();
+                if (ReturnInst *r = dyn_cast<ReturnInst>(term)) {
+                    assert(!ret);
+                    ret = r;
+                }
+            }
+
+            return ret;
         }
     }
 
