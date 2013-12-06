@@ -137,7 +137,14 @@ std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
         /// If the value we load has a name and is not a global...
         /// (i.e. it's a local variable in this function)
         for (unsigned i = 0; i < bucket.size(); ++i) {
-            if (LoadInst *L = dyn_cast<LoadInst>(bucket[i])) {
+            Value *v = bucket[i];
+            
+            if (LoadInst *L = dyn_cast<LoadInst>(v)) {
+                if (L->getType()->isFloatingPointTy()) {
+                    /// floats always require state saving
+                    /// Return the empty results vector
+                    return results;
+                }
                 if (!L->getPointerOperand()->hasName()) {
                     continue;
                 }
