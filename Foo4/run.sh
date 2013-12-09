@@ -6,32 +6,36 @@ then
   exit $E_BADARGS
 fi
 
-# Army directory layout
-DIRECTORY="/Users/jlapre/temp/llvm-mac-install/bin"
+# mastiff directory layout
+DIRECTORY="/home/laprej/temp/clang+llvm-3.2-x86_64-linux-ubuntu-12.04/bin"
 
 if [ -d "$DIRECTORY" ]; then
-#    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
-    LIB="/Users/jlapre/temp/llvm-mac-install/lib/LLVMFoo4.dylib"
-#    echo $PATH
 fi
 
-DIRECTORY="/Users/laprej/temp/clang+llvm-3.2-x86_64-apple-darwin11/bin"
+DIRECTORY="/home/laprej/temp/llvm-3.2-install/bin"
 
 if [ -d "$DIRECTORY" ]; then
-#    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
-#    echo $PATH
+    LIB="/home/laprej/temp/llvm-3.2-install/lib/LLVMFoo4.so"
+    SCLIB="/home/laprej/temp/llvm-3.2-install/lib/BCGEPs.so"
+    AUGLIB="/home/laprej/temp/llvm-3.2-install/lib/aug-struct.so"
 fi
 
 # odin directory layout
+DIRECTORY="/Users/laprej/temp/clang+llvm-3.2-x86_64-apple-darwin11/bin"
+
+if [ -d "$DIRECTORY" ]; then
+    export PATH="$DIRECTORY":$PATH
+fi
+
 DIRECTORY="/Users/laprej/temp/llvm-3.2-install/bin"
 
 if [ -d "$DIRECTORY" ]; then
-#    echo "$DIRECTORY found"
     export PATH="$DIRECTORY":$PATH
     LIB="/Users/laprej/temp/llvm-3.2-install/lib/LLVMFoo4.dylib"
-#    echo $PATH
+    SCLIB="/Users/laprej/temp/llvm-3.2-install/lib/BCGEPs.dylib"
+    AUGLIB="/Users/laprej/temp/llvm-3.2-install/lib/aug-struct.dylib"
 fi
 
 if [ ! -f "$1.c" -a $# -eq 3 ]
@@ -46,8 +50,6 @@ then
     clang -emit-llvm $1.c -c -o $1.bc
 fi
 
-SCLIB="/Users/laprej/temp/llvm-3.2-install/lib/BCGEPs.dylib"
-AUGLIB="/Users/laprej/temp/llvm-3.2-install/lib/aug-struct.dylib"
 echo "opt -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -reg2mem -aug-struct -ins-func=$2 -update-func=$3 $1.bc -o $1-nogeps.bc"
 opt -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -reg2mem -aug-struct -ins-func=$2 -update-func=$3 $1.bc -o $1-nogeps.bc
 

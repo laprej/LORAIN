@@ -1244,7 +1244,7 @@ namespace {
         //Info.addRequired<AliasAnalysis>();
         Info.addRequired<MemoryDependenceAnalysis>();
         Info.addRequired<PostDominatorTree>();
-        Info.addRequiredTransitive<DominatorTree>();
+        Info.addRequired<DominatorTree>();
         Info.addRequired<LoopInfo>();
         //Info.addRequiredTransitive<MemoryDependenceAnalysis>();
     }
