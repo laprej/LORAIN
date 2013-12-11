@@ -15,7 +15,7 @@ tester: ${test-objs} main.o
 	clang++ -o tester main.o ${test-objs}
 
 .cpp.o:
-	clang++ -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+	clang++ -c $(CXXFLAGS) -o $@ $<
 
 test-add-output.o:
 	../run.sh test-add test_add undo_test_add

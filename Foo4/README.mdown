@@ -18,6 +18,13 @@ the process of being added.  It can be run like this:
 Then run the **run.sh** script or use the Makefile.  Available
 **debug-only** options are **Instrumenter**, **Inverter**, and **Hello**.
 
+### Notes ###
+
+C++ flags are required under Linux as clang++ does not seem to search
+these directories:
+
+    export CXXFLAGS=-I/usr/include/x86_64-linux-gnu/c++/4.8
+
 ### Metadata ###
 
 [Metadata](http://llvm.org/docs/doxygen/html/classllvm_1_1MDNode.html)
