@@ -1170,6 +1170,9 @@ namespace {
 #undef DEBUG_TYPE
 #define DEBUG_TYPE "Hello"
     
+    STATISTIC(ForwardBB, "Number of basic blocks in forward handler");
+    STATISTIC(ReverseBB, "Number of basic blocks in reverse handler");
+    
     LoopInfo * Hello::getLoopInfo(Function &f)
     {
         LoopInfo &LI = getAnalysis<LoopInfo>(f);
@@ -1612,6 +1615,13 @@ namespace {
             }
 
             handleEpilogue(M);
+            
+            for (Function::iterator i = ForwardFunc->begin(), e = ForwardFunc->end(); i != e; ++i)
+                ForwardBB++;
+            
+            for (Function::iterator i = target->begin(), e = target->end(); i != e; ++i)
+                ReverseBB++;
+            
 
             return true;
         }
