@@ -3,21 +3,24 @@ Results
 
 phold
 -----
-Hand-written RC BB count (IR) | 4
-Hand-written FW BB count (IR) | 21
-Generated RC BB count (IR) |  21
 
-
-Machine code RC BB count (asm)|            3
-Machine code FW BB count (asm)|           13
-Machine code generated RC BB count (asm)|  7
+What | BB count
+--- | ---
+Hand-written RC (IR) | 4
+Hand-written FW (IR) | 21
+Generated RC (IR) | 21
+Machine code RC (asm) |            3
+Machine code FW (asm) |           13
+Machine code generated RC (asm) |  7
 
 airport
 -------
-Hand-written RC BB count (IR)|            14
-Hand-written FW BB count (IR)|            68
-Generated RC BB count (IR)|               68
 
-Machine code RC BB count (asm)|           10
-Machine code FW BB count (asm)|           41
-Machine code generated RC BB count (asm)| 10
+What | BB count
+--- | ---
+Hand-written RC (IR) | 14
+Hand-written FW (IR) | 68
+Generated RC (IR) | 68
+Machine code RC (asm) | 10
+Machine code FW (asm) | 41
+Machine code generated RC (asm) | 10
