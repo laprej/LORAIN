@@ -1077,6 +1077,27 @@ namespace {
 
                 I.eraseFromParent();
             }
+            if (str == "print1" ||
+                str == "print2" ||
+                str == "print3" ||
+                str == "print4") {
+                errs() << "Calling " << str << "\n";
+                
+                handleDeps(I);
+                
+                Function *printN = M.getFunction(str);
+                assert(printN && "printN not found!");
+                Value *X = I.getOperand(0);
+                Value *Y = I.getOperand(1);
+                Value *Z = I.getOperand(2);
+                
+                Value *newVal = ConstantInt::get(Z->getType(), 1);
+                
+                Value *v = builder.CreateCall3(printN, lookup(X), lookup(Y), newVal);
+                oldToNew[&I] = v;
+                
+                //I.eraseFromParent();
+            }
         }
 		
 		void visitBinaryOperator(BinaryOperator &I) {
@@ -1433,6 +1454,7 @@ namespace {
             /// We need to add basic blocks to the CFG so we can set our
             /// bitfields in them.  The bitfields are used to find our
             /// correct path back through the CFG
+            errs() << "We're going to split " << workList.size() << " blocks\n";
             for (std::set<BasicBlock*>::iterator wi = workList.begin(),
                  we = workList.end(); wi != we; ++wi) {
                 instrumenter.splitUpEdges(*wi, M);
