@@ -98,5 +98,9 @@ airport-output.o: preGenerated/airport.bc
 	cp ./preGenerated/airport.bc .
 	../run.sh airport event_handler rc 1
 
+pcs-output.o: preGenerated/pcs.bc
+	cp ./preGenerated/pcs.bc .
+	../run.sh pcs Cell_EventHandler rc 1
+
 clean:
 	rm -f *.o *.s *.bc *.ll *~
