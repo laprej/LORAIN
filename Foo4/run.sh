@@ -58,8 +58,8 @@ mv $1-nogeps.bc $1.bc
 
 llvm-dis $1.bc
 
-echo "opt $DBG -loop-simplify -indvars -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 $1.bc -o $1-output.bc"
-opt $DBG -loop-simplify -indvars -load "$LIB" -hello -rev-func=$2 -tgt-func=$3 $1.bc -o $1-output.bc
+echo "opt $DBG -load "$LIB" -loop-simplify -indvars -hello -rev-func=$2 -tgt-func=$3 $1.bc -o $1-output.bc"
+opt $DBG -load "$LIB" -loop-simplify -indvars -hello -rev-func=$2 -tgt-func=$3 $1.bc -o $1-output.bc
 
 echo "opt completed."
 
