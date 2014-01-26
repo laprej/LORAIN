@@ -1432,8 +1432,6 @@ namespace {
                 }
             }
             
-            Instrumenter instrumenter(M, this);
-
             /// workList will contain BBs with 2 or more predecessors
             std::set<BasicBlock *> workList;
             for (fi = ForwardFunc->begin(), fe = ForwardFunc->end(); fi != fe; ++fi) {
@@ -1448,6 +1446,8 @@ namespace {
                 }
             }
             
+            Instrumenter instrumenter(M, this);
+
             /// We need to add basic blocks to the CFG so we can set our
             /// bitfields in them.  The bitfields are used to find our
             /// correct path back through the CFG
