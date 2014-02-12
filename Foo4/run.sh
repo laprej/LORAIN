@@ -46,8 +46,8 @@ fi
 
 if [ $# -eq 3 ]
 then
-    echo clang -emit-llvm $1.c -c -o $1.bc
-    clang -emit-llvm $1.c -c -o $1.bc
+    echo clang ${CFLAGS} -emit-llvm $1.c -c -o $1.bc
+    clang ${CFLAGS} -emit-llvm $1.c -c -o $1.bc
 fi
 
 echo "opt -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -mergereturn -reg2mem -aug-struct -ins-func=$2 -update-func=$3 $1.bc -o $1-nogeps.bc"
