@@ -162,9 +162,9 @@ std::vector<Value *> overlap(User *I, Function *F, int argIndex=0)
                 if (!L->getPointerOperand()->hasName()) {
                     continue;
                 }
-                DEBUG(errs() << "L is named " << L->getPointerOperand()->getName() << "\n");
+                DEBUG(errs() << "LOAD is named " << L->getPointerOperand()->getName() << "\n");
                 if (isa<GlobalVariable>(L->getPointerOperand())) {
-                    DEBUG(errs() << "L is global");
+                    DEBUG(errs() << "LOAD is global");
                 }
                 else {
                     /// Return the empty results vector
