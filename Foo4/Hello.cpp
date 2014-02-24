@@ -1319,45 +1319,48 @@ namespace {
         if (NamedMDNode *N = M.getNamedMetadata(jmlAugId)) {
             /// TODO: Fix this; we're making some assumptions
             MDNode *MD = N->getOperand(0);
-            Value *V = MD->getOperand(0);
-            ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V);
-            assert(CDS && "invalid metadata operands");
 
-            unsigned stateMemberIdx = CDS->getElementAsInteger(0);
-            unsigned messageMemberIdx = CDS->getElementAsInteger(1);
+            for (unsigned i = 0; i < MD->getNumOperands(); i++) {
+                Value *V = MD->getOperand(i);
+                ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V);
+                assert(CDS && "invalid metadata operands");
 
-            errs() << "state member " << stateMemberIdx << " maps to message member " << messageMemberIdx << "\n";
+                unsigned stateMemberIdx = CDS->getElementAsInteger(0);
+                unsigned messageMemberIdx = CDS->getElementAsInteger(1);
 
-            Function *F = M.getFunction(FuncToInstrument);
+                errs() << "state member " << stateMemberIdx << " maps to message member " << messageMemberIdx << "\n";
 
-            Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
-            Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
+                Function *F = M.getFunction(FuncToInstrument);
 
-            IRBuilder<> builder(&F->getEntryBlock());
+                Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
+                Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
 
-            builder.SetInsertPoint(findSpot(F));
+                IRBuilder<> builder(&F->getEntryBlock());
 
-            Value *step1a = builder.CreateLoad(step1);
-            Value *step3a = builder.CreateLoad(step3);
-            markAsSkip(step1a);
-            markAsSkip(step3a);
+                builder.SetInsertPoint(findSpot(F));
 
-            std::vector<Value *> arr;
-            arr.push_back(builder.getInt32(0));
-            arr.push_back(builder.getInt32(stateMemberIdx));
-            Value *step2 = builder.CreateGEP(step1a, arr);
-            markAsSkip(step2);
+                Value *step1a = builder.CreateLoad(step1);
+                Value *step3a = builder.CreateLoad(step3);
+                markAsSkip(step1a);
+                markAsSkip(step3a);
 
-            std::vector<Value *> arr2;
-            arr2.push_back(builder.getInt32(0));
-            arr2.push_back(builder.getInt32(messageMemberIdx));
-            Value *step4 = builder.CreateGEP(step3a, arr2);
-            markAsSkip(step4);
+                std::vector<Value *> arr;
+                arr.push_back(builder.getInt32(0));
+                arr.push_back(builder.getInt32(stateMemberIdx));
+                Value *step2 = builder.CreateGEP(step1a, arr);
+                markAsSkip(step2);
 
-            Value *oldStateVal = builder.CreateLoad(step2);
-            Value *store = builder.CreateStore(oldStateVal, step4);
-            markAsSkip(oldStateVal);
-            markAsSkip(store);
+                std::vector<Value *> arr2;
+                arr2.push_back(builder.getInt32(0));
+                arr2.push_back(builder.getInt32(messageMemberIdx));
+                Value *step4 = builder.CreateGEP(step3a, arr2);
+                markAsSkip(step4);
+
+                Value *oldStateVal = builder.CreateLoad(step2);
+                Value *store = builder.CreateStore(oldStateVal, step4);
+                markAsSkip(oldStateVal);
+                markAsSkip(store);
+            }
         }
     }
 
@@ -1369,40 +1372,43 @@ namespace {
 
             /// TODO: Fix this; we're making some assumptions
             MDNode *MD = N->getOperand(0);
-            Value *V = MD->getOperand(0);
-            ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V);
-            assert(CDS && "invalid metadata operands");
 
-            unsigned stateMemberIdx = CDS->getElementAsInteger(0);
-            unsigned messageMemberIdx = CDS->getElementAsInteger(1);
+            for (unsigned i = 0; i < MD->getNumOperands(); i++) {
+                Value *V = MD->getOperand(i);
+                ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V);
+                assert(CDS && "invalid metadata operands");
 
-            errs() << "state member " << stateMemberIdx << " maps to message member " << messageMemberIdx << "\n";
+                unsigned stateMemberIdx = CDS->getElementAsInteger(0);
+                unsigned messageMemberIdx = CDS->getElementAsInteger(1);
 
-            Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
-            Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
+                errs() << "state member " << stateMemberIdx << " maps to message member " << messageMemberIdx << "\n";
 
-            IRBuilder<> builder(&F->getEntryBlock());
+                Value *step1 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(0), M, F);
+                Value *step3 = searchArgumentsAllocas(F->getFunctionType()->getFunctionParamType(2), M, F);
 
-            builder.SetInsertPoint(findSpot(F, 1));
+                IRBuilder<> builder(&F->getEntryBlock());
 
-            Value *step1a = builder.CreateLoad(step1);
-            Value *step3a = builder.CreateLoad(step3);
+                builder.SetInsertPoint(findSpot(F, 1));
 
-            std::vector<Value *> arr;
-            arr.push_back(builder.getInt32(0));
-            arr.push_back(builder.getInt32(stateMemberIdx));
-            Value *step2 = builder.CreateGEP(step1a, arr);
+                Value *step1a = builder.CreateLoad(step1);
+                Value *step3a = builder.CreateLoad(step3);
 
-            std::vector<Value *> arr2;
-            arr2.push_back(builder.getInt32(0));
-            arr2.push_back(builder.getInt32(messageMemberIdx));
-            Value *step4 = builder.CreateGEP(step3a, arr2);
+                std::vector<Value *> arr;
+                arr.push_back(builder.getInt32(0));
+                arr.push_back(builder.getInt32(stateMemberIdx));
+                Value *step2 = builder.CreateGEP(step1a, arr);
 
-            /// Invert this!
-            Value *oldStateVal = builder.CreateLoad(step4);
-            Value *store = builder.CreateStore(oldStateVal, step2);
+                std::vector<Value *> arr2;
+                arr2.push_back(builder.getInt32(0));
+                arr2.push_back(builder.getInt32(messageMemberIdx));
+                Value *step4 = builder.CreateGEP(step3a, arr2);
 
-            markAsSkip(store);
+                /// Invert this!
+                Value *oldStateVal = builder.CreateLoad(step4);
+                Value *store = builder.CreateStore(oldStateVal, step2);
+
+                markAsSkip(store);
+            }
         }
     }
 
