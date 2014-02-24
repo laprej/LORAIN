@@ -249,6 +249,7 @@ public:
                         /// and op2 is the index we're overwriting.
                         Value *zero = ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0);
                         assert(G->getOperand(1) == zero);
+                        errs() << "SAVING OPERAND " << *G->getOperand(2) << ": " << *I.getPointerOperand() << "\n";
                         workList[G->getOperand(2)] = I.getPointerOperand();
                         markJML(&I);
                     }
@@ -322,6 +323,7 @@ bool AugmentStruct::runOnModule(Module &M)
     PointerType *fromStructPtr = PointerType::getUnqual(fromStruct);
     PointerType *fromStructPtrPtr = PointerType::getUnqual(fromStructPtr);
 
+    /// Create a vector containing all of the original members
     std::vector<Type *> structItems(fromStruct->element_begin(),
                                     fromStruct->element_end());
 
