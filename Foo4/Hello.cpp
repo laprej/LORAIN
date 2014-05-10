@@ -355,7 +355,8 @@ namespace {
             Function *F = M.getFunction(FuncToInstrument);
             LoopInfo *LI = h->getLoopInfo(*F);
             // If we're in a loop, don't do this.
-            if (LI->getLoopDepth(successor)) {
+            if (LI->getLoopDepth(successor) &&
+                LI->getLoopFor(successor)->getHeader() == successor) {
                 return;
             }
             DEBUG(errs() << "splitUpEdges(S=" << successor->getName() << ")\n");
@@ -558,7 +559,8 @@ namespace {
             Function *ForwardFunc = M.getFunction(FuncToInstrument);
             LoopInfo *LI = h->getLoopInfo(*ForwardFunc);
             /// Handle CmpInsts inside of loops a little differently...
-            if (LI->getLoopDepth(I.getParent())) {
+            if (LI->getLoopDepth(I.getParent()) &&
+                LI->getLoopFor(I.getParent())->getHeader() == I.getParent()) {
                 handleLoop(I);
                 // early exit from this function
                 return;
@@ -810,7 +812,8 @@ namespace {
             LoopInfo *LI = h->getLoopInfo(*f);
             
             /// Standard loop construct
-            if (count == 2 && LI->getLoopDepth(bb)) {
+            if (count == 2 && LI->getLoopDepth(bb) &&
+                LI->getLoopFor(bb)->getHeader() == I.getParent()) {
                 /// 1. Get the loop header
                 BasicBlock *header = LI->getLoopFor(bb)->getHeader();
                 assert(header == I.getParent());
