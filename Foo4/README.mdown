@@ -16,7 +16,7 @@ the process of being added.  It can be run like this:
     export DBG="-debug-only=Instrumenter"
 
 Then run the **run.sh** script or use the Makefile.  Available
-**debug-only** options are **Instrumenter**, **Inverter**, and **Hello**.
+**debug-only** options are **aug-struct**, **Instrumenter**, **Inverter**, and **Hello**.
 
 ### Notes ###
 

@@ -50,8 +50,8 @@ then
     clang ${CFLAGS} -emit-llvm $1.c -c -o $1.bc
 fi
 
-echo "opt -always-inline -stats -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -mergereturn -reg2mem -aug-struct -ins-func=$2 -update-func=$3 $1.bc -o $1-nogeps.bc"
-opt -always-inline -stats -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -mergereturn -reg2mem -aug-struct -ins-func=$2 -update-func=$3 $1.bc -o $1-nogeps.bc
+echo "opt $DBG -always-inline -stats -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -mergereturn -reg2mem -aug-struct -ins-func=$2 -update-func=$3 $1.bc -o $1-nogeps.bc"
+opt $DBG -always-inline -stats -load $SCLIB -load $AUGLIB -break-constgeps -lowerswitch -mergereturn -reg2mem -aug-struct -ins-func=$2 -update-func=$3 $1.bc -o $1-nogeps.bc
 
 echo "mv $1-nogeps.bc $1.bc"
 mv $1-nogeps.bc $1.bc
