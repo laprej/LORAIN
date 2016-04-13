@@ -1,6 +1,8 @@
 Automatic Reverse Event Handler Generator
 =========================================
 
+Based on [LLVM 3.2](http://llvm.org/releases/download.html#3.2)
+
 Attempt 3 (Foo4)
 ----------------
 This approach has fared well.  Full basic blocks of instructions
